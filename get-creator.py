@@ -3,6 +3,7 @@ import yt_dlp
 import time
 import random
 import sys
+import os
 
 raw_input = """  
 (1, 'e-ORhEE9VVg', 'Taylor Swift - Blank Space', 'taylor swift blank space', 273, 'https://i.ytimg.com/vi/e-ORhEE9VVg/mqdefault.jpg', '2025-11-09 21:34:03'),
@@ -19,6 +20,17 @@ videos = tuple_pattern.findall(raw_input)
 total_videos = len(videos)
 print(f"Gefundene Videos: {total_videos}\n")
 
+output_file = "unique_channels.txt"
+
+# Bereits existierende Kanäle laden, falls die Datei existiert
+existing_channels = set()
+if os.path.exists(output_file):
+    with open(output_file, 'r', encoding='utf-8') as f:
+        for line in f:
+            parts = line.strip().split('\t')
+            if len(parts) == 2:
+                existing_channels.add(parts[1])  # Kanal-URL als eindeutiges Kriterium
+
 # yt-dlp Optionen
 ydl_opts = {
     'quiet': True,
@@ -29,7 +41,7 @@ ydl_opts = {
     'sleep_interval_subtitles': 1,
 }
 
-with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+with yt_dlp.YoutubeDL(ydl_opts) as ydl, open(output_file, 'a', encoding='utf-8') as out_file:
     for idx, vid in enumerate(videos, 1):
         video_id = vid[1]
         video_url = f"https://www.youtube.com/watch?v={video_id}"
@@ -37,8 +49,15 @@ with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
             channel_name = info.get('channel') or info.get('uploader')
             channel_url = info.get('channel_url')
-            print(f"Kanalname: {channel_name}")
-            print(f"Kanal-URL: {channel_url}\n")
+
+            if channel_url not in existing_channels:
+                # In Datei schreiben und Set aktualisieren
+                out_file.write(f"{channel_name}\t{channel_url}\n")
+                existing_channels.add(channel_url)
+                print(f"Neu hinzugefügt: {channel_name} | {channel_url}")
+            else:
+                print(f"Bereits vorhanden, übersprungen: {channel_name} | {channel_url}")
+
         except Exception as e:
             print(f"Fehler bei Video {video_id}: {e}\n")
 
@@ -53,4 +72,4 @@ with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         # Kleine zufällige Pause zur Sicherheit
         time.sleep(random.uniform(1, 4))
 
-print("\n\nFertig!")
+print("\n\nFertig! Alle einzigartigen Kanäle gespeichert in", output_file)
