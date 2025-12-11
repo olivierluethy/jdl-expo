@@ -2,7 +2,7 @@ from yt_dlp import YoutubeDL
 import sys
 import re
 
-url = "https://www.youtube.com/@daftpunk"
+url = "https://www.youtube.com/channel/UCqECaJ8Gagnn7YCbPEzWH6g"
 
 class ChannelIDLogger:
     channel_id_printed = False
