@@ -36,9 +36,19 @@ ydl_opts = {
     'quiet': True,
     'no_warnings': True,
     'skip_download': True,
-    'sleep_interval': 3,
-    'max_sleep_interval': 8,
-    'sleep_interval_subtitles': 1,
+    
+    # === Das bringt am meisten ===
+    'extractor_args': {'youtubetab': {'skip': ['authcheck']}},  # spart oft 1–2 Sek pro Video
+    'extract_flat': True,                # SEHR WICHTIG: nur Metadaten der Liste, kein voller Info-Dict
+    'cachedir': False,                   # kein Cache auf Festplatte schreiben
+    'retries': 3,
+    'fragment_retries': 3,
+    
+    # === Human-like Verhalten ===
+    'sleep_interval': 0.3,               # viel niedriger als jetzt
+    'max_sleep_interval': 1.8,
+    
+    # Optional: Random User-Agent + Proxy-Rotation (siehe unten)
 }
 
 with yt_dlp.YoutubeDL(ydl_opts) as ydl, open(output_file, 'a', encoding='utf-8') as out_file:
@@ -52,7 +62,7 @@ with yt_dlp.YoutubeDL(ydl_opts) as ydl, open(output_file, 'a', encoding='utf-8')
 
             if channel_url not in existing_channels:
                 # In Datei schreiben und Set aktualisieren
-                out_file.write(f"{channel_name}\t{channel_url}\n")
+                out_file.write(f"{channel_url}\n")
                 existing_channels.add(channel_url)
                 print(f"Neu hinzugefügt: {channel_name} | {channel_url}")
             else:
