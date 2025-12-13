@@ -9,13 +9,7 @@ class SilentLogger:
         pass
 
 urls = [
-   # "https://www.youtube.com/channel/UCqECaJ8Gagnn7YCbPEzWH6g",
-   # "https://www.youtube.com/@MrBeast",
-   # "https://www.youtube.com/@KSI",
-   # "https://www.youtube.com/channel/UC-pOuHFcndLpyfWSPVqXt_A"
-   "https://www.youtube.com/channel/UChLNWcjgBfZ9RPnzR5LM1mQ",
-   "https://www.youtube.com/channel/UCkX4rp22PPv7V6PKXD7zZFg",
-   "https://www.youtube.com/linkinpark/"
+   "https://www.youtube.com/channel/UC8gxc2fYnL1tHPOXHXyI6sQ"
 ]
 
 ydl_opts = {
