@@ -1,58 +1,22 @@
 import yt_dlp
+import os
+
+CHANNELS_FILE = "unique_channels.txt"
 
 youtube_urls = [
-    # "https://www.youtube.com/@ErosRamazzotti",
-    "https://www.youtube.com/@DomenicoModugnoOfficial",
-    "https://www.youtube.com/@claudiobaglionitv",
-    "https://www.youtube.com/@laurapausinitv",
-    "https://www.youtube.com/@TizianoFerro",
-    "https://www.youtube.com/@VascoRossi",
-    "https://www.youtube.com/@Jovanotti",
-    "https://www.youtube.com/@ligabue",
-    "https://www.youtube.com/@negramaro",
-    "https://www.youtube.com/@fabrifibra",
-    "https://www.youtube.com/@salmo",
-    "https://www.youtube.com/@manuarenaofficial",
-    "https://www.youtube.com/@francescomichelini",
-    "https://www.youtube.com/@alessandromannarino",
-    "https://www.youtube.com/@francescogabbani",
-    "https://www.youtube.com/@ermalmeta",
-    "https://www.youtube.com/@biagioantonacci",
-    "https://www.youtube.com/@nektarofficial",
-    "https://www.youtube.com/@subsonica",
-    "https://www.youtube.com/@marcoMengoni",
-    "https://www.youtube.com/@fabriFibraVEVO",
-    "https://www.youtube.com/@thegiornalisti",
-    "https://www.youtube.com/@marracash",
-    "https://www.youtube.com/@caparezza",
-    "https://www.youtube.com/@gemitaiz",
-    "https://www.youtube.com/@salvinomusic",
-    "https://www.youtube.com/@liricaofficial",
-    "https://www.youtube.com/@comatriofficial",
-    "https://www.youtube.com/@thekolors",
-    "https://www.youtube.com/@maneskin",
-    "https://www.youtube.com/@officialmadh",
-    "https://www.youtube.com/@umbertotozziofficial",
-    "https://www.youtube.com/@AndreaBocelli",
-    "https://www.youtube.com/@Zuccheromusic",
-    "https://www.youtube.com/@JuiceWRLD",
-    "https://www.youtube.com/@LewisCapaldi",
-    # weitere URLs hier eintragen
-    # "https://www.youtube.com/@Metallica",
-    # "https://www.youtube.com/@Coldplay",
+    "https://www.youtube.com/@TateMcRae/",
+    "https://www.youtube.com/@GracieAbrams/",
+    "https://www.youtube.com/@alessirose/"
 ]
 
 def get_old_channel_url(url: str) -> str | None:
-    """
-    Gibt bevorzugt die alte Channel-URL zurück: https://www.youtube.com/channel/UC...
-    """
     ydl_opts = {
         "quiet": True,
         "skip_download": True,
-        "extract_flat": True,  # Keine tiefgehende Video-Extraktion → keine Warnings
+        "extract_flat": True,
         "extractor_args": {
             "youtube": {
-                "player_client": ["default"],  # Unterdrückt JS- und SABR-Warnings
+                "player_client": ["default"],
             }
         },
     }
@@ -61,17 +25,14 @@ def get_old_channel_url(url: str) -> str | None:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
 
-            # Priorität 1: channel_id → alte Form (das ist, was du willst)
             channel_id = info.get("channel_id")
             if channel_id:
                 return f"https://www.youtube.com/channel/{channel_id}"
 
-            # Fallback 1: uploader_url (meist die @-Handle-Form)
             uploader_url = info.get("uploader_url")
             if uploader_url and uploader_url.startswith("https://www.youtube.com/"):
                 return uploader_url
 
-            # Fallback 2: channel_url (falls vorhanden)
             channel_url = info.get("channel_url")
             if channel_url:
                 return channel_url
@@ -83,10 +44,45 @@ def get_old_channel_url(url: str) -> str | None:
         return None
 
 
+# Lade bestehende Channels (ohne Anführungszeichen)
+existing_channels = set()
+file_is_empty = False
+
+if os.path.exists(CHANNELS_FILE):
+    with open(CHANNELS_FILE, "r", encoding="utf-8") as f:
+        content = f.read().strip()
+        if not content:  # Datei existiert, ist aber leer
+            file_is_empty = True
+        else:
+            for line in content.splitlines():
+                cleaned = line.strip().rstrip(",").strip('"')
+                if cleaned:
+                    existing_channels.add(cleaned)
+else:
+    # Datei existiert noch nicht → wird als leer behandelt
+    file_is_empty = True
+
+# Verarbeite jede URL
 for url in youtube_urls:
     channel_url = get_old_channel_url(url)
 
     if channel_url:
-        print(f'"{channel_url}",')
+        clean_url = channel_url.strip()
+
+        if clean_url in existing_channels:
+            print(f"Bereits vorhanden: {clean_url}")
+        else:
+            # Neu hinzufügen
+            with open(CHANNELS_FILE, "a", encoding="utf-8") as f:
+                if file_is_empty:
+                    # Erste Eintrag ever → führenden Zeilenumbruch einfügen
+                    f.write("\n")
+                    file_is_empty = False  # Nur beim allerersten Mal
+                f.write(f"{clean_url},\n")
+
+            existing_channels.add(clean_url)
+            print(f"Hinzugefügt: {clean_url}")
     else:
-        print(f'Kein Channel gefunden für: {url}')
+        print(f"Kein Channel gefunden für: {url}")
+
+print("\nFertig! Neue Channels wurden ohne Anführungszeichen zu 'unique_channels.txt' hinzugefügt.")
