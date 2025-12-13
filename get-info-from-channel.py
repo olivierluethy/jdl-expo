@@ -13,7 +13,7 @@ import re
 
 from yt_dlp import YoutubeDL
 
-url = "https://www.youtube.com/@KSI"  # oder https://www.youtube.com/c/ChannelName
+url = "https://www.youtube.com/channel/UC-pOuHFcndLpyfWSPVqXt_A"  # oder https://www.youtube.com/c/ChannelName
 
 ydl_opts = {}
 
