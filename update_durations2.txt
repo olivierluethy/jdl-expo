@@ -1,5 +1,0 @@
-UPDATE youtube_video_cache SET duration = 148 WHERE youtube_id = 'YDZi1H0iU7w';
-UPDATE youtube_video_cache SET duration = 237 WHERE youtube_id = 'IyhVp7pFa3k';
-UPDATE youtube_video_cache SET duration = 189 WHERE youtube_id = 'Q9x2DgAWkXw';
-UPDATE youtube_video_cache SET duration = 226 WHERE youtube_id = 'QQLMp5lCuYI';
-UPDATE youtube_video_cache SET duration = 181 WHERE youtube_id = 'IL_ogt1AV2w';

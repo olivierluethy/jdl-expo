@@ -1,0 +1,14 @@
+# Ignoriere den venv-Ordner
+venv/
+
+# Python-Bytecode-Dateien
+__pycache__/
+*.pyc
+
+# IDE- und Editor-Dateien
+.vscode/
+.idea/
+*.swp
+
+# Mac OS X spezifische Dateien
+.DS_Store
