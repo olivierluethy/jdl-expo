@@ -1,7 +1,7 @@
 from yt_dlp import YoutubeDL
 
 # Hier kannst du beliebig eine @-Handle-URL oder normale Channel-URL eingeben
-INPUT = "https://www.youtube.com/@CBSMornings"
+INPUT = "https://www.youtube.com/channel/UCNUFterLJ9vpFZZ0try7sLA"
 
 ydl_opts = {
     "quiet": True,

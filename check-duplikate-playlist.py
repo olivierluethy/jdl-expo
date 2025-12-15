@@ -1,15 +1,24 @@
 from collections import Counter
 
+filename = "unique_channels.txt"  # Passe den Dateinamen an
+
 # Datei einlesen
-filename = "unique_playlists.txt"  # Passe den Dateinamen an
-with open(filename, "r") as f:
+with open(filename, "r", encoding="utf-8") as f:
     lines = [line.strip() for line in f if line.strip()]
 
-# Zähle, wie oft jeder Link vorkommt
+# Zähle Vorkommen
 link_counts = Counter(lines)
 
-# Berechne die Gesamtanzahl der Duplikate
-# (Jeder Link, der mehr als einmal vorkommt, zählt die "extra" Vorkommen)
+# Anzahl der entfernten Duplikate berechnen
 total_duplicates = sum(count - 1 for count in link_counts.values() if count > 1)
 
-print(f"Anzahl der Duplikate: {total_duplicates}")
+# Einmalige Inhalte erzeugen (Reihenfolge bleibt erhalten)
+unique_lines = list(dict.fromkeys(lines))
+
+# Datei mit bereinigtem Inhalt überschreiben
+with open(filename, "w", encoding="utf-8") as f:
+    for line in unique_lines:
+        f.write(line + "\n")
+
+print(f"Anzahl der entfernten Duplikate: {total_duplicates}")
+print(f"Anzahl eindeutiger Einträge: {len(unique_lines)}")
