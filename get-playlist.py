@@ -1,4 +1,5 @@
 from yt_dlp import YoutubeDL
+import re
 
 class SilentLogger:
     def debug(self, msg):
@@ -9,7 +10,7 @@ class SilentLogger:
         pass
 
 urls = [
-   "https://www.youtube.com/channel/UC8gxc2fYnL1tHPOXHXyI6sQ"
+    "https://www.youtube.com/channel/UC8gxc2fYnL1tHPOXHXyI6sQ"
 ]
 
 ydl_opts = {
@@ -22,11 +23,20 @@ for url in urls:
     with YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
 
+        # 1️⃣ Normaler Weg über yt-dlp Infos
         channel_id = info.get("channel_id") or info.get("id")
+
+        # 2️⃣ Edge-Case: yt-dlp kennt nur die Uploads-Playlist implizit
+        if not channel_id:
+            match = re.search(r"(UC[a-zA-Z0-9_-]{22})", url)
+            if match:
+                channel_id = match.group(1)
+
         if not channel_id:
             continue
 
-        modified_id = channel_id[0] + "U" + channel_id[2:]
-        playlist_url = f"https://www.youtube.com/playlist?list={modified_id}"
+        # 3️⃣ Uploads-Playlist erzeugen (UC → UU)
+        uploads_playlist_id = "UU" + channel_id[2:]
+        playlist_url = f"https://www.youtube.com/playlist?list={uploads_playlist_id}"
 
         print(playlist_url)
