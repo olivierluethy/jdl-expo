@@ -10,7 +10,7 @@ from unidecode import unidecode # <-- NEUER IMPORT
 
 # --- KONFIGURATION ---
 OUTPUT_SQL_FILE = "insert.sql" # Die Datei, die automatisch erstellt wird
-channels = ["https://www.youtube.com/channel/UC8bXAHcitOUnxe7cFg6Curg"]
+channels = ["https://www.youtube.com/c/Myl%C3%A8neFarmerOfficial"]
 MAX_THREADS = 30  # Kann je nach Systemleistung angepasst werden.
 
 # Optionen für detaillierte Abfrage (MIT FILTERN FÜR SHORTS/PREMIUM)
@@ -31,48 +31,61 @@ class SilentLogger:
     def error(self, msg): pass
 
 def convert_channel_to_uploads_playlist(url):
-    """Wandelt eine YouTube-Channel-URL in die entsprechende Uploads-Playlist-URL um."""
+    """Wandelt jede erdenkliche YouTube-Channel-URL in die Uploads-Playlist (UU…) um."""
+    
+    # 1. Schnell-Check: Schon eine Playlist? → direkt zurückgeben
+    if "playlist?list=" in url:
+        return url
+
     ydl_opts = {
         "quiet": True,
         "extract_flat": True,
+        "skip_download": True,
+        "no_warnings": True,
         "logger": SilentLogger(),
     }
-    
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
             info = ydl.extract_info(url, download=False)
-            # Normaler Weg: channel_id aus den Metadaten
+            if not info:
+                return url
+
+            # yt-dlp gibt bei jedem Channel-Typ (auch /c/ und @) die channel_id zurück
             channel_id = info.get("channel_id") or info.get("id")
-            
-            # Fallback: Direkt aus der URL extrahieren (falls UC... in der URL)
-            if not channel_id:
-                match = re.search(r"(UC[a-zA-Z0-9_-]{22})", url)
-                if match:
-                    channel_id = match.group(1)
-            
-            if channel_id:
-                uploads_playlist_id = "UU" + channel_id[2:]
-                return f"https://www.youtube.com/playlist?list={uploads_playlist_id}"
+            if channel_id and channel_id.startswith("UC"):
+                uploads_id = "UU" + channel_id[2:]
+                return f"https://www.youtube.com/playlist?list={uploads_id}"
         except:
             pass
-    
-    # Wenn alles fehlschlägt, Original-URL zurückgeben (wird später eh fehlschlagen)
-    return url
-# ---------------------------------------------------------------
 
-# --- KONFIGURATION ERWEITERN: Channel-URLs automatisch umwandeln ---
+    # Letzter Notfall-Fallback: Manuell aus /c/ oder @ versuchen (sollte eigentlich nie nötig sein)
+    # Aber für absolute Sicherheit:
+    if "/c/" in url:
+        handle = url.split("/c/")[-1].split("?")[0]
+        # yt-dlp kann das auch, aber wir machen es nochmal explizit:
+        try:
+            test_url = f"https://www.youtube.com/@{handle}"
+            return convert_channel_to_uploads_playlist(test_url)  # Rekursion einmal
+        except:
+            pass
+
+    return url
+# -----------------------------------------------------------------------
+
+# --- KONFIGURATION ERWEITERN: Alle Channel-Varianten automatisch umwandeln ---
 processed_channels = []
-for url in channels:
-    # Erkennung: Wenn die URL /channel/ oder @ enthält → Channel-URL
-    if "/channel/" in url or url.startswith("https://www.youtube.com/@"):
-        playlist_url = convert_channel_to_uploads_playlist(url)
-        print(f"Channel-URL erkannt → konvertiert zu Uploads-Playlist: {playlist_url}", file=sys.stderr)
+for original_url in channels:
+    # Alle bekannten Channel-Formate erkennen
+    if any(x in original_url for x in ["/channel/UC", "/c/", "@", "/user/"]):
+        playlist_url = convert_channel_to_uploads_playlist(original_url)
+        print(f"Channel erkannt → konvertiert zu Uploads-Playlist: {playlist_url}", file=sys.stderr)
         processed_channels.append(playlist_url)
     else:
-        # Bereits eine Playlist-URL oder andere gültige URL
-        processed_channels.append(url)
+        processed_channels.append(original_url)
 
-channels = processed_channels  # Ersetze die Original-Liste
+channels = processed_channels
+# -----------------------------------------------------------------------
 # ---------------------------------------------------------------
 
 # --- HILFSFUNKTIONEN (wie von Ihnen bereitgestellt) ---
