@@ -1,58 +1,142 @@
 import yt_dlp
 import time
+import requests
+import re
+import sys
 import json
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # --- KONFIGURATION ---
-output_file = "taylor_swift_videos_sorted_threaded.json"
+OUTPUT_SQL_FILE = "insert.sql" # Die Datei, die automatisch erstellt wird
 channels = ["https://www.youtube.com/playlist?list=UU0WP5P-ufpRfjbNrmOWwLBQ"]
-MAX_THREADS = 30  # Anzahl der gleichzeitigen Anfragen. 
+MAX_THREADS = 30  # Kann je nach Systemleistung angepasst werden.
 
-# Optionen für detaillierte Abfrage mit Filtern
+# Optionen für detaillierte Abfrage (MIT FILTERN FÜR SHORTS/PREMIUM)
 ydl_opts_details = {
     'quiet': True,
     'no_warnings': True,
     'skip_download': True,
-    'forceprintjson': True,
     'ignoreerrors': True,
-    # Filter: Ignoriere Premium-Videos ODER Videos kürzer als 60 Sekunden (Shorts)
+    # Filter hinzugefügt: Ignoriere Premium-Videos UND Videos kürzer als 60 Sekunden (Shorts)
     'match_filter': yt_dlp.match_filter_func('!is_premium & duration > 60'), 
 }
 # ----------------------
 
-# --- PHASE 1: URLs schnell erfassen, um die Gesamtanzahl zu kennen (flach) ---
-print("Phase 1: Erfasse alle Video-URLs schnell (mit Filtern angewendet)...")
-all_urls = set()
+# --- HILFSFUNKTIONEN (wie von Ihnen bereitgestellt) ---
+
+def normalize_name(name):
+    if not name:
+        return ""
+    normalized = name.lower()
+    normalized = re.sub(r'[^a-z0-9\s]', '', normalized)
+    normalized = re.sub(r'\s+', ' ', normalized).strip()
+    return normalized
+
+def get_artist_image(artist_name):
+    """Holt das Bild von Wikipedia (blockiert, wird im Thread ausgeführt)."""
+    if not artist_name:
+        return None
+    
+    wp_url = "https://en.wikipedia.org/w/api.php"
+    headers = {"User-Agent": "ArtistImageFetcher/1.0 (your-email@example.com)"}
+    
+    # 1. Suche nach dem exakten Künstler-Seitentitel
+    search_params = {
+        "action": "query", "list": "search", "srsearch": artist_name,
+        "format": "json", "srlimit": 1, "origin": "*"
+    }
+    try:
+        search_resp = requests.get(wp_url, params=search_params, headers=headers, timeout=5)
+        search_data = search_resp.json()
+        searches = search_data.get("query", {}).get("search", [])
+        if not searches: return None
+        # Zugriff auf das Titel-Feld des ersten Suchergebnisses
+        page_title = searches[0]["title"] 
+        
+        # 2. Hole Bild (original bevorzugt)
+        img_params = {
+            "action": "query", "titles": page_title, "format": "json",
+            "prop": "pageimages", "piprop": "original", "origin": "*"
+        }
+        img_resp = requests.get(wp_url, params=img_params, headers=headers, timeout=5)
+        img_data = img_resp.json()
+        
+        pages = img_data.get("query", {}).get("pages", {})
+        for page in pages.values():
+            if "original" in page:
+                return page["original"]["source"]
+            if "thumbnail" in page:
+                return page["thumbnail"]["source"]
+            
+    except Exception as e:
+        # Fehler werden hier geloggt, um Debugging zu erleichtern
+        print(f"DEBUG(Wiki-API-Fehler für {artist_name}): {e}", file=sys.stderr)
+        pass
+    return None
+
+# --- PHASE 1: URLs schnell erfassen und Artist-Info (flach & mit Filtern) ---
+
+video_tasks = []
 ydl_opts_flat = {'quiet': True, 'extract_flat': True, 'skip_download': True, 'no_warnings': True}
 
+print("Phase 1: Erfasse alle Video-URLs und Künstlerinformationen schnell (mit Filtern angewendet)...", file=sys.stderr)
+
 with yt_dlp.YoutubeDL(ydl_opts_flat) as ydl_flat:
+    # Wichtig: yt-dlp wendet 'match_filter' Optionen auch im 'flat' Modus an!
     ydl_flat.params.update(ydl_opts_details) 
     for channel_url in channels:
-        info = ydl_flat.extract_info(channel_url, download=False)
-        if 'entries' in info:
-            for entry in info['entries']:
-                if entry and 'url' in entry:
-                    all_urls.add(entry['url'])
+        try:
+            info = ydl_flat.extract_info(channel_url, download=False)
+            if info is None:
+                 print(f"WARNUNG: Konnte keine Info für {channel_url} abrufen. Überspringe.", file=sys.stderr)
+                 continue
 
-video_urls_list = list(all_urls)
-total_videos = len(video_urls_list)
-print(f"Insgesamt {total_videos} Videos gefunden (nach Filterung). Starte Phase 2 (detaillierte Abfrage mittels Threads).")
+            uploader_name = info.get("uploader") or info.get("channel") or "Unbekannter Künstler"
 
-# --- PHASE 2: Detaillierte Metadaten parallel abfragen mit Fortschrittsanzeige ---
+            if 'entries' in info:
+                for entry in info['entries']:
+                    if entry and 'url' in entry:
+                        video_tasks.append({
+                            'url': entry['url'],
+                            'artist_name': uploader_name
+                        })
+        except Exception as e:
+            print(f"FEHLER in Phase 1 bei {channel_url}: {e}", file=sys.stderr)
 
-def get_video_details(video_url):
-    """Funktion zum Abrufen von Details für eine einzelne URL in einem Thread."""
+
+unique_tasks = {task['url']: task for task in video_tasks}.values()
+video_tasks_list = list(unique_tasks)
+total_videos = len(video_tasks_list)
+
+print(f"Insgesamt {total_videos} Videos gefunden (nach Filterung). Starte Phase 2 (detaillierte Abfrage & Wikipedia mittels Threads).", file=sys.stderr)
+
+
+# --- PHASE 2: Detaillierte Metadaten & Wikipedia parallel abfragen ---
+
+def process_video_task(task):
+    """Funktion zum Abrufen von Details und Bild in einem Thread."""
+    video_url = task['url']
+    artist_name = task['artist_name']
+    
+    # Stellen Sie sicher, dass es eine vollständige URL ist
+    full_url = f"https://www.youtube.com/watch?v={video_url}" if len(video_url) == 11 else video_url
+
     try:
         with yt_dlp.YoutubeDL(ydl_opts_details) as ydl_detail:
-            info = ydl_detail.extract_info(video_url, download=False)
-            if info:
-                # HIER WERDEN DIE VIEWS ENTFERNT
+            video_info = ydl_detail.extract_info(full_url, download=False)
+            
+            if video_info:
+                # Hole Wikipedia Bild HIER INNEN, im selben Thread
+                image_url = get_artist_image(artist_name)
+                
                 return {
-                    'title': info.get('title', 'N/A'),
-                    'url': info.get('webpage_url', 'N/A'),
-                    'duration_seconds': info.get('duration', 0),
-                    # 'views': info.get('view_count', 0), # Diese Zeile wurde entfernt
+                    'youtube_id': video_info.get("id"),
+                    'title': video_info.get('title'),
+                    'duration': video_info.get('duration'),
+                    'thumbnail': video_info.get('thumbnail'),
+                    'artist_name': artist_name,
+                    'image_url': image_url
                 }
     except Exception:
         pass
@@ -61,22 +145,60 @@ def get_video_details(video_url):
 all_video_data = []
 
 with ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
-    future_to_url = {executor.submit(get_video_details, url): url for url in video_urls_list}
+    future_to_task = {executor.submit(process_video_task, task): task for task in video_tasks_list}
     
-    for future in tqdm(as_completed(future_to_url), total=total_videos, desc="Verarbeite Videos parallel"):
+    for future in tqdm(as_completed(future_to_task), total=total_videos, desc="Verarbeite Videos & Wikipedia parallel", file=sys.stderr):
         result = future.result()
         if result:
             all_video_data.append(result)
 
-# --- PHASE 3: Sortieren und Speichern ---
-# HIER WIRD DIE SORTIERUNG ANGEPASST (jetzt nach 'title' alphabetisch)
-sorted_videos = sorted(
-    all_video_data,
-    key=lambda x: x['title'].lower(), # Sortiert alphabetisch nach Titel
-    reverse=False # Aufsteigend sortieren
-)
+# --- PHASE 3: SQL-Statements generieren und in Datei schreiben ---
 
-with open(output_file, "w", encoding="utf-8") as f:
-    json.dump(sorted_videos, f, ensure_ascii=False, indent=4)
+artists_to_insert = {}
 
-print(f"\nFertig! {len(sorted_videos)} Videos wurden in '{output_file}' gespeichert (ohne Views, alphabetisch sortiert).")
+for video in all_video_data:
+    artist_norm = normalize_name(video['artist_name'])
+    if artist_norm not in artists_to_insert:
+        artists_to_insert[artist_norm] = {
+            'name': video['artist_name'],
+            'image_url': video['image_url']
+        }
+
+print(f"\n-- Generiere SQL-Statements und speichere in '{OUTPUT_SQL_FILE}' --", file=sys.stderr)
+
+# Hier öffnen wir die Datei und schreiben direkt hinein, damit 'python script.py' funktioniert
+with open(OUTPUT_SQL_FILE, "w", encoding="utf-8") as f:
+    f.write("START TRANSACTION;\n")
+
+    # 1. Artists einfügen
+    for artist_norm, data in artists_to_insert.items():
+        image_sql = f"'{data['image_url'].replace("'", "''")}'" if data['image_url'] else "NULL"
+        f.write(f"INSERT IGNORE INTO artists (name, name_norm, image_url) "
+                f"VALUES ('{data['name'].replace("'", "''")}', '{artist_norm}', {image_sql});\n")
+
+    # 2. Videos einfügen
+    for video in all_video_data:
+        youtube_id = video['youtube_id']
+        title = video['title']
+        title_norm = normalize_name(title)
+        duration = video['duration']
+        thumbnail = video['thumbnail']
+        artist_norm = normalize_name(video['artist_name'])
+
+        thumbnail_sql = f"'{thumbnail.replace("'", "''")}'" if thumbnail else "NULL"
+        duration_sql = duration if duration is not None else "NULL"
+        
+        f.write(f"INSERT IGNORE INTO youtube_video_cache "
+                f"(youtube_id, title, title_norm, artist_id, duration, thumbnail) "
+                f"VALUES ("
+                f"'{youtube_id}', "
+                f"'{title.replace("'", "''")}', "
+                f"'{title_norm}', "
+                f"(SELECT id FROM artists WHERE name_norm = '{artist_norm}'), "
+                f"{duration_sql}, "
+                f"{thumbnail_sql}"
+                f");\n")
+                
+    f.write("COMMIT;\n")
+
+print(f"\nFertig! Die Datei '{OUTPUT_SQL_FILE}' wurde erfolgreich erstellt.", file=sys.stderr)
