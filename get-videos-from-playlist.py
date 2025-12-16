@@ -6,10 +6,11 @@ import sys
 import json
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from unidecode import unidecode # <-- NEUER IMPORT
 
 # --- KONFIGURATION ---
 OUTPUT_SQL_FILE = "insert.sql" # Die Datei, die automatisch erstellt wird
-channels = ["https://www.youtube.com/playlist?list=UU0WP5P-ufpRfjbNrmOWwLBQ"]
+channels = ["https://www.youtube.com/playlist?list=UU8bXAHcitOUnxe7cFg6Curg"]
 MAX_THREADS = 30  # Kann je nach Systemleistung angepasst werden.
 
 # Optionen für detaillierte Abfrage (MIT FILTERN FÜR SHORTS/PREMIUM)
@@ -28,13 +29,23 @@ ydl_opts_details = {
 def normalize_name(name):
     if not name:
         return ""
-    normalized = name.lower()
-    normalized = re.sub(r'[^a-z0-9\s]', '', normalized)
+        
+    # --- GEÄNDERT: Erst in ASCII umwandeln, dann normalisieren ---
+    # Mylène Farmer -> Mylene Farmer
+    # Rag'n'Bone Man -> Rag'n'Bone Man (Akzente weg, Sonderzeichen noch da)
+    normalized = unidecode(name) 
+
+    normalized = normalized.lower()
+    # Diese Zeile ist jetzt sicherer, da die meisten Sonderzeichen weg sind
+    normalized = re.sub(r'[^a-z0-9\s]', '', normalized) 
     normalized = re.sub(r'\s+', ' ', normalized).strip()
+    
+    # Ergebnis für 'Mylène Farmer' wäre jetzt: 'mylene farmer'
     return normalized
 
 def get_artist_image(artist_name):
     """Holt das Bild von Wikipedia (blockiert, wird im Thread ausgeführt)."""
+    # ... (Diese Funktion bleibt unverändert) ...
     if not artist_name:
         return None
     
@@ -93,13 +104,20 @@ with yt_dlp.YoutubeDL(ydl_opts_flat) as ydl_flat:
                  continue
 
             uploader_name = info.get("uploader") or info.get("channel") or "Unbekannter Künstler"
+            
+            # --- ERGÄNZUNG A: Channel ID extrahieren ---
+            channel_id = info.get("channel_id")
+            if not channel_id and 'entries' in info and len(info['entries']) > 0:
+                 # Manchmal liegt die channel_id im ersten Eintrag, falls der Playlist-Header sie nicht hat.
+                 channel_id = info['entries'][0].get('channel_id')
 
             if 'entries' in info:
                 for entry in info['entries']:
                     if entry and 'url' in entry:
                         video_tasks.append({
                             'url': entry['url'],
-                            'artist_name': uploader_name
+                            'artist_name': uploader_name,
+                            'channel_id': channel_id # Füge die ID dem Task hinzu
                         })
         except Exception as e:
             print(f"FEHLER in Phase 1 bei {channel_url}: {e}", file=sys.stderr)
@@ -118,6 +136,7 @@ def process_video_task(task):
     """Funktion zum Abrufen von Details und Bild in einem Thread."""
     video_url = task['url']
     artist_name = task['artist_name']
+    channel_id = task['channel_id'] # Füge die ID hier hinzu
     
     # Stellen Sie sicher, dass es eine vollständige URL ist
     full_url = f"https://www.youtube.com/watch?v={video_url}" if len(video_url) == 11 else video_url
@@ -136,7 +155,8 @@ def process_video_task(task):
                     'duration': video_info.get('duration'),
                     'thumbnail': video_info.get('thumbnail'),
                     'artist_name': artist_name,
-                    'image_url': image_url
+                    'image_url': image_url,
+                    'channel_id': channel_id # Füge die ID dem finalen Daten-Dictionary hinzu
                 }
     except Exception:
         pass
@@ -161,7 +181,8 @@ for video in all_video_data:
     if artist_norm not in artists_to_insert:
         artists_to_insert[artist_norm] = {
             'name': video['artist_name'],
-            'image_url': video['image_url']
+            'image_url': video['image_url'],
+            'channel_id': video['channel_id'] # Füge die ID hier hinzu
         }
 
 print(f"\n-- Generiere SQL-Statements und speichere in '{OUTPUT_SQL_FILE}' --", file=sys.stderr)
@@ -173,10 +194,14 @@ with open(OUTPUT_SQL_FILE, "w", encoding="utf-8") as f:
     # 1. Artists einfügen
     for artist_norm, data in artists_to_insert.items():
         image_sql = f"'{data['image_url'].replace("'", "''")}'" if data['image_url'] else "NULL"
-        f.write(f"INSERT IGNORE INTO artists (name, name_norm, image_url) "
-                f"VALUES ('{data['name'].replace("'", "''")}', '{artist_norm}', {image_sql});\n")
+        
+        # --- ERGÄNZUNG B: SQL-Statement für artists um channel_id erweitern ---
+        channel_id_sql = f"'{data['channel_id'].replace("'", "''")}'" if data['channel_id'] else "NULL"
 
-    # 2. Videos einfügen
+        f.write(f"INSERT IGNORE INTO artists (name, name_norm, image_url, channel_id) "
+                f"VALUES ('{data['name'].replace("'", "''")}', '{artist_norm}', {image_sql}, {channel_id_sql});\n")
+
+    # 2. Videos einfügen (der Rest Ihres Codes kann wie folgt abgeschlossen werden)
     for video in all_video_data:
         youtube_id = video['youtube_id']
         title = video['title']
@@ -194,11 +219,9 @@ with open(OUTPUT_SQL_FILE, "w", encoding="utf-8") as f:
                 f"'{youtube_id}', "
                 f"'{title.replace("'", "''")}', "
                 f"'{title_norm}', "
-                f"(SELECT id FROM artists WHERE name_norm = '{artist_norm}'), "
+                f"(SELECT id FROM artists WHERE name_norm = '{artist_norm}'), " # Subquery um artist_id zu finden
                 f"{duration_sql}, "
                 f"{thumbnail_sql}"
                 f");\n")
                 
     f.write("COMMIT;\n")
-
-print(f"\nFertig! Die Datei '{OUTPUT_SQL_FILE}' wurde erfolgreich erstellt.", file=sys.stderr)

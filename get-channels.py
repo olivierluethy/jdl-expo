@@ -69,25 +69,36 @@ def load_inputs(path: str) -> list[str]:
         return [line.strip() for line in f if line.strip()]
 
 
-# ---------- Name → Channel ----------
+# ---------- Name → Channel (verbessert) ----------
 def search_channel_by_name(name: str) -> str | None:
     try:
         with yt_dlp.YoutubeDL(YDL_OPTS) as ydl:
-            query = f"ytsearch1:{name} channel"
+            # Füge "official artist channel" hinzu, um die Suche zu verfeinern
+            query = f"ytsearch1:{name} official artist channel"
             info = ydl.extract_info(query, download=False)
 
             if not info or not info.get("entries"):
                 return None
 
+            # Wir nehmen den ersten Eintrag
             entry = info["entries"][0]
+            
+            # Priorisiere die uploader_url oder channel_url
+            channel_url = entry.get("uploader_url") or entry.get("channel_url")
 
-            channel_id = entry.get("channel_id")
-            if channel_id:
-                return f"https://www.youtube.com/channel/{channel_id}"
+            if channel_url:
+                # Optional: Extrahiere die Channel-ID aus der URL für einheitliche Links
+                # (yt-dlp extrahiert die ID oft automatisch in der info-Dict)
+                channel_id = entry.get("channel_id")
+                if channel_id:
+                    return f"https://www.youtube.com/channel/{channel_id}"
+                
+                return channel_url
 
-            return entry.get("channel_url")
+            return None
 
     except Exception as e:
+        # Fehlerbehandlung wurde beibehalten
         print(f"[NAME ERROR] {name}: {e}")
         return None
 
