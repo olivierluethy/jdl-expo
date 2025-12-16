@@ -10,7 +10,7 @@ from unidecode import unidecode # <-- NEUER IMPORT
 
 # --- KONFIGURATION ---
 OUTPUT_SQL_FILE = "insert.sql" # Die Datei, die automatisch erstellt wird
-channels = ["https://www.youtube.com/playlist?list=UU8bXAHcitOUnxe7cFg6Curg"]
+channels = ["https://www.youtube.com/channel/UC8bXAHcitOUnxe7cFg6Curg"]
 MAX_THREADS = 30  # Kann je nach Systemleistung angepasst werden.
 
 # Optionen für detaillierte Abfrage (MIT FILTERN FÜR SHORTS/PREMIUM)
@@ -23,6 +23,57 @@ ydl_opts_details = {
     'match_filter': yt_dlp.match_filter_func('!is_premium & duration > 60'), 
 }
 # ----------------------
+
+# --- NEUE HILFSFUNKTION: Channel-URL → Uploads-Playlist-URL umwandeln ---
+class SilentLogger:
+    def debug(self, msg): pass
+    def warning(self, msg): pass
+    def error(self, msg): pass
+
+def convert_channel_to_uploads_playlist(url):
+    """Wandelt eine YouTube-Channel-URL in die entsprechende Uploads-Playlist-URL um."""
+    ydl_opts = {
+        "quiet": True,
+        "extract_flat": True,
+        "logger": SilentLogger(),
+    }
+    
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        try:
+            info = ydl.extract_info(url, download=False)
+            # Normaler Weg: channel_id aus den Metadaten
+            channel_id = info.get("channel_id") or info.get("id")
+            
+            # Fallback: Direkt aus der URL extrahieren (falls UC... in der URL)
+            if not channel_id:
+                match = re.search(r"(UC[a-zA-Z0-9_-]{22})", url)
+                if match:
+                    channel_id = match.group(1)
+            
+            if channel_id:
+                uploads_playlist_id = "UU" + channel_id[2:]
+                return f"https://www.youtube.com/playlist?list={uploads_playlist_id}"
+        except:
+            pass
+    
+    # Wenn alles fehlschlägt, Original-URL zurückgeben (wird später eh fehlschlagen)
+    return url
+# ---------------------------------------------------------------
+
+# --- KONFIGURATION ERWEITERN: Channel-URLs automatisch umwandeln ---
+processed_channels = []
+for url in channels:
+    # Erkennung: Wenn die URL /channel/ oder @ enthält → Channel-URL
+    if "/channel/" in url or url.startswith("https://www.youtube.com/@"):
+        playlist_url = convert_channel_to_uploads_playlist(url)
+        print(f"Channel-URL erkannt → konvertiert zu Uploads-Playlist: {playlist_url}", file=sys.stderr)
+        processed_channels.append(playlist_url)
+    else:
+        # Bereits eine Playlist-URL oder andere gültige URL
+        processed_channels.append(url)
+
+channels = processed_channels  # Ersetze die Original-Liste
+# ---------------------------------------------------------------
 
 # --- HILFSFUNKTIONEN (wie von Ihnen bereitgestellt) ---
 
