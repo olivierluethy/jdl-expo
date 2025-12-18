@@ -10,7 +10,7 @@ from unidecode import unidecode # <-- NEUER IMPORT
 
 # --- KONFIGURATION ---
 OUTPUT_SQL_FILE = "insert.sql" # Die Datei, die automatisch erstellt wird
-channels = ["https://www.youtube.com/c/Myl%C3%A8neFarmerOfficial"]
+channels = ["https://www.youtube.com/playlist?list=UULkAepWjdylmXSltofFvsYQ"]
 MAX_THREADS = 30  # Kann je nach Systemleistung angepasst werden.
 
 # Optionen für detaillierte Abfrage (MIT FILTERN FÜR SHORTS/PREMIUM)
