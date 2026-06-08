@@ -5,7 +5,7 @@ import { QRCodeCanvas } from "qrcode.react";
 import io from "socket.io-client";
 import { FaPlay, FaPause, FaVolumeMute, FaVolumeUp } from "react-icons/fa";
 
-const SOCKET_SERVER = "http://localhost:4000";
+const SOCKET_SERVER = "https://api.tunevote.com";
 
 const SessionPage = () => {
   const { sessionId } = useParams();
@@ -97,10 +97,10 @@ const SessionPage = () => {
   const loadSessionData = useCallback(async () => {
     try {
       const [sessRes, queueRes] = await Promise.all([
-        axios.get(`http://localhost:4000/sessions/${sessionId}`, {
+        axios.get(`https://api.tunevote.com/sessions/${sessionId}`, {
           headers: getAuthHeaders(),
         }),
-        axios.get(`http://localhost:4000/sessions/${sessionId}/queue`, {
+        axios.get(`https://api.tunevote.com/sessions/${sessionId}/queue`, {
           headers: getAuthHeaders(),
         }),
       ]);
@@ -158,10 +158,10 @@ const SessionPage = () => {
 
       try {
         const [sessRes, queueRes] = await Promise.all([
-          axios.get(`http://localhost:4000/sessions/${sessionId}`, {
+          axios.get(`https://api.tunevote.com/sessions/${sessionId}`, {
             headers: getAuthHeaders(),
           }),
-          axios.get(`http://localhost:4000/sessions/${sessionId}/queue`, {
+          axios.get(`https://api.tunevote.com/sessions/${sessionId}/queue`, {
             headers: getAuthHeaders(),
           }),
         ]);
@@ -210,7 +210,7 @@ const SessionPage = () => {
       setRecLoading(true);
       try {
         const res = await axios.get(
-          `http://localhost:4000/sessions/${sessionId}/recommendations`,
+          `https://api.tunevote.com/sessions/${sessionId}/recommendations`,
           { headers: getAuthHeaders(), signal: controller.signal },
         );
         setRecommendations(res.data);
@@ -320,7 +320,7 @@ const SessionPage = () => {
   // === CACHE LADEN (außerhalb von useEffect!) ===
   const loadCache = useCallback(async () => {
     try {
-      const res = await axios.get("http://localhost:4000/youtube-cache");
+      const res = await axios.get("https://api.tunevote.com/youtube-cache");
       // NORMALISIERE: youtube_id → youtubeId
       const normalized = res.data.map((item) => ({
         ...item,
@@ -405,7 +405,7 @@ const SessionPage = () => {
             const norm = normalize(title);
 
             await axios.post(
-              "http://localhost:4000/youtube-cache",
+              "https://api.tunevote.com/youtube-cache",
               { title_norm: norm, title, youtube_id: youtubeId, thumbnail },
               { headers: getAuthHeaders() },
             );
@@ -420,7 +420,7 @@ const SessionPage = () => {
           setAiLoading(true);
           try {
             const res = await axios.post(
-              `http://localhost:4000/sessions/${sessionId}/ai-suggestions`,
+              `https://api.tunevote.com/sessions/${sessionId}/ai-suggestions`,
               { query },
               { headers: getAuthHeaders() },
             );
@@ -520,14 +520,14 @@ const SessionPage = () => {
     try {
       // Join mit Auth (Gast oder eingeloggt)
       await axios.post(
-        `http://localhost:4000/sessions/${sessionId}/join-live`,
+        `https://api.tunevote.com/sessions/${sessionId}/join-live`,
         {},
         { headers: getAuthHeaders() },
       );
 
       // Sync-Daten holen
       const { data } = await axios.get(
-        `http://localhost:4000/sessions/${sessionId}/playback-sync`,
+        `https://api.tunevote.com/sessions/${sessionId}/playback-sync`,
         { headers: getAuthHeaders() }, // WICHTIG: Auch hier!
       );
 
@@ -545,7 +545,7 @@ const SessionPage = () => {
       if (!isLiveJoined) return;
       try {
         const { data } = await axios.get(
-          `http://localhost:4000/sessions/${sessionId}/playback-sync`,
+          `https://api.tunevote.com/sessions/${sessionId}/playback-sync`,
           { headers: getAuthHeaders() },
         );
         if (data.current_video_id && data.video_start_time) {
@@ -571,7 +571,7 @@ const SessionPage = () => {
     }
     try {
       await axios.post(
-        `http://localhost:4000/sessions/${sessionId}/leave-live`,
+        `https://api.tunevote.com/sessions/${sessionId}/leave-live`,
         {},
         { headers: getAuthHeaders() },
       );
@@ -594,7 +594,7 @@ const SessionPage = () => {
 
     try {
       await axios.post(
-        `http://localhost:4000/sessions/${sessionId}/start`,
+        `https://api.tunevote.com/sessions/${sessionId}/start`,
         {},
         { headers: getAuthHeaders() },
       );
@@ -722,7 +722,7 @@ const SessionPage = () => {
           const norm = normalize(title);
 
           await axios.post(
-            "http://localhost:4000/youtube-cache",
+            "https://api.tunevote.com/youtube-cache",
             {
               title_norm: norm,
               title,
@@ -734,7 +734,7 @@ const SessionPage = () => {
         }
 
         // Cache neu laden
-        const cacheRes = await axios.get("http://localhost:4000/youtube-cache");
+        const cacheRes = await axios.get("https://api.tunevote.com/youtube-cache");
         setVideoCache(cacheRes.data);
       }
 
@@ -753,7 +753,7 @@ const SessionPage = () => {
     setAiLoading(true);
     try {
       const res = await axios.post(
-        `http://localhost:4000/sessions/${sessionId}/ai-suggestions`,
+        `https://api.tunevote.com/sessions/${sessionId}/ai-suggestions`,
         { query },
         { headers: getAuthHeaders() },
       );
@@ -768,7 +768,7 @@ const SessionPage = () => {
   const proposeSong = async (video) => {
     try {
       await axios.post(
-        `http://localhost:4000/sessions/${sessionId}/proposals`,
+        `https://api.tunevote.com/sessions/${sessionId}/proposals`,
         {
           videoId: video.id.videoId, // ← NUR videoId!
           item_type: "music",
@@ -789,7 +789,7 @@ const SessionPage = () => {
   const handleGuestJoin = async () => {
     if (!nickname.trim()) return;
     try {
-      const res = await axios.post("http://localhost:4000/guest/join", {
+      const res = await axios.post("https://api.tunevote.com/guest/join", {
         nickname,
       });
 
@@ -813,7 +813,7 @@ const SessionPage = () => {
 
     try {
       const { data: newItem } = await axios.post(
-        `http://localhost:4000/sessions/${sessionId}/recommendations/add`,
+        `https://api.tunevote.com/sessions/${sessionId}/recommendations/add`,
         { youtubeId: rec.youtubeId, title: rec.title },
         { headers: getAuthHeaders() },
       );
@@ -838,7 +838,7 @@ const SessionPage = () => {
 
     try {
       await axios.delete(
-        `http://localhost:4000/sessions/${sessionId}/queue/${itemId}`,
+        `https://api.tunevote.com/sessions/${sessionId}/queue/${itemId}`,
         { headers: getAuthHeaders() },
       );
       setQueue((prev) => prev.filter((item) => item.id !== itemId));
@@ -1253,7 +1253,7 @@ const SessionPage = () => {
               onClick={async () => {
                 try {
                   await axios.post(
-                    `http://localhost:4000/sessions/${sessionId}/proposals`,
+                    `https://api.tunevote.com/sessions/${sessionId}/proposals`,
                     {
                       item_type: "pause",
                       duration: pauseDuration,
