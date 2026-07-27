@@ -17,7 +17,7 @@ SEARCH_URLS = [
     "https://www.bing.com/news/search?q=site:msn.com+helvetus&FORM=HDRSC6",
     "https://www.bing.com/news/search?q=site:msn.com+stralium&FORM=HDRSC6"
 ]
-SEEN_FILE = "seen_articles.json"
+SEEN_FILE = "rss/data/seen_articles.json"
 CHECK_INTERVAL = 300  # Sekunden
 
 # 🔎 Schlagwörter / Phrasen

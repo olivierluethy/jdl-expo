@@ -1,6 +1,6 @@
 from collections import Counter
 
-filename = "unique_channels.txt"  # Passe den Dateinamen an
+filename = "tunevote/data/unique_channels.txt"  # Passe den Dateinamen an
 
 # Datei einlesen
 with open(filename, "r", encoding="utf-8") as f:

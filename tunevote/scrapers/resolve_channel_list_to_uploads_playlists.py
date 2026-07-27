@@ -3,9 +3,9 @@ import re
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-CHANNELS_FILE = "unique_channels.txt"
-PLAYLISTS_FILE = "unique_playlists.txt"
-PROCESSED_FILE = "processed_channels.txt"
+CHANNELS_FILE = "tunevote/data/unique_channels.txt"
+PLAYLISTS_FILE = "tunevote/data/unique_playlists.txt"
+PROCESSED_FILE = "tunevote/data/processed_channels.txt"
 
 class SilentLogger:
     def debug(self, msg):

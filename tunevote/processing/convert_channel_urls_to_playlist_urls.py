@@ -1,5 +1,5 @@
-INPUT_FILE = "unique_channels.txt"
-OUTPUT_FILE = "unique_playlists.txt"
+INPUT_FILE = "tunevote/data/unique_channels.txt"
+OUTPUT_FILE = "tunevote/data/unique_playlists.txt"
 
 with open(INPUT_FILE, "r", encoding="utf-8") as infile, \
      open(OUTPUT_FILE, "a", encoding="utf-8") as outfile:

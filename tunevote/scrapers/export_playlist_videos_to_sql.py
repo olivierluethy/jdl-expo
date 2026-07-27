@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from unidecode import unidecode # <-- NEUER IMPORT
 
 # --- KONFIGURATION ---
-OUTPUT_SQL_FILE = "insert.sql" # Die Datei, die automatisch erstellt wird
+OUTPUT_SQL_FILE = "database/dumps/tunevote_artists_and_videos_insert.sql" # Die Datei, die automatisch erstellt wird
 channels = ["https://www.youtube.com/playlist?list=UULkAepWjdylmXSltofFvsYQ"]
 MAX_THREADS = 30  # Kann je nach Systemleistung angepasst werden.
 

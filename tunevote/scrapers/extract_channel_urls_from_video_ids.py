@@ -6,9 +6,9 @@ import sys
 import os
 
 # === Dateien ===
-raw_file = "artists_output(1).txt"          # Hier kommt dein großer SQL-ähnlicher Input rein
-processed_file = "processed_videos.txt"   # Wird automatisch erstellt + erweitert
-output_file = "unique_channels.txt"
+raw_file = "tunevote/data/artists_output(1).txt"          # Hier kommt dein großer SQL-ähnlicher Input rein
+processed_file = "tunevote/data/processed_videos.txt"   # Wird automatisch erstellt + erweitert
+output_file = "tunevote/data/unique_channels.txt"
 
 # === Bereits verarbeitete Video-IDs laden ===
 processed_ids = set()

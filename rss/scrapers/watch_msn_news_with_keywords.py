@@ -10,7 +10,7 @@ import os
 
 NTFY_URL = "https://ntfy.sh/derek-sparen-spalter-alert-xyz-gradunal-k3f9x2p7q-k3f9x2p7q"
 SEARCH_URL = "https://www.bing.com/news/search?q=site:msn.com+Firma&FORM=HDRSC6"
-SEEN_FILE = "seen_articles.json"
+SEEN_FILE = "rss/data/seen_articles.json"
 CHECK_INTERVAL = 300  # Sekunden
 
 # 🔎 Schlagwörter / Phrasen

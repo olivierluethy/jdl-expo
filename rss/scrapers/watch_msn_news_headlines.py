@@ -7,7 +7,7 @@ import os
 NTFY_URL = "https://ntfy.sh/derek-sparen-spalter-alert-xyz-gradunal-k3f9x2p7q-k3f9x2p7q"
 SEARCH_URL = "https://www.bing.com/news/search?q=site:msn.com+Betrug+Luzerner+Firma+wehrt+sich&FORM=HDRSC6"
 
-SEEN_FILE = "seen_articles.json"
+SEEN_FILE = "rss/data/seen_articles.json"
 
 def load_seen():
     if os.path.exists(SEEN_FILE):

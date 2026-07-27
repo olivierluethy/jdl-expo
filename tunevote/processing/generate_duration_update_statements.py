@@ -22,7 +22,7 @@ raw_input = """
 video_ids = re.findall(r"\('([^']+)'\)", raw_input)
 
 # --- Datei für die SQL Statements ---
-base_filename = 'update_durations.txt'
+base_filename = '../data/update_durations.txt'
 output_file = os.path.join(os.path.dirname(__file__), base_filename)
 
 # Prüfen, ob Datei existiert, und ggf. inkrementieren

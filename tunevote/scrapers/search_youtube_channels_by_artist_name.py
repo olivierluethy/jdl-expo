@@ -42,8 +42,8 @@ import yt_dlp
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-CHANNELS_FILE = "unique_channels.txt"
-INPUT_FILE = "artists.txt"
+CHANNELS_FILE = "tunevote/data/unique_channels.txt"
+INPUT_FILE = "tunevote/data/artists.txt"
 MAX_WORKERS = 6  # parallel threads (5–8 ist optimal)
 
 

@@ -19,7 +19,7 @@ cursor = conn.cursor()
 cursor.execute("SHOW TABLES")
 tables = [t[0] for t in cursor.fetchall()]
 
-with open("struktur.sql", "w", encoding="utf-8") as f:
+with open("database/dumps/tunevote_schema_structure.sql", "w", encoding="utf-8") as f:
     for table in tables:
         cursor.execute(f"SHOW CREATE TABLE `{table}`")
         create_stmt = cursor.fetchone()[1]

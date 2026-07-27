@@ -6,9 +6,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # =============================
 # Dateinamen
 # =============================
-input_file = 'unique_channels.txt'
-available_file = 'available_channels.txt'
-dead_file = 'dead_channels.txt'
+input_file = 'tunevote/data/unique_channels.txt'
+available_file = 'tunevote/data/available_channels.txt'
+dead_file = 'tunevote/data/dead_channels.txt'
 
 # =============================
 # Funktion zum Prüfen eines Channels

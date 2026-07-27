@@ -29446,10 +29446,10 @@ for entry in entries:
 # ---------------------------------------------------------
 # Datei-Name automatisch inkrementieren
 # ---------------------------------------------------------
-filename = "artists_output.txt"
+filename = "tunevote/data/artists_output.txt"
 i = 1
 while os.path.exists(filename):
-    filename = f"artists_output({i}).txt"
+    filename = f"tunevote/data/artists_output({i}).txt"
     i += 1
 
 # ---------------------------------------------------------

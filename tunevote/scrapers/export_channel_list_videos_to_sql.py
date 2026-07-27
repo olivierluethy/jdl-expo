@@ -7,8 +7,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from unidecode import unidecode
 
 # --- KONFIGURATION ---
-OUTPUT_SQL_FILE = "insert.sql"
-CHANNELS_FILE = "unique_channels.txt"
+OUTPUT_SQL_FILE = "database/dumps/tunevote_artists_and_videos_insert.sql"
+CHANNELS_FILE = "tunevote/data/unique_channels.txt"
 MAX_THREADS = 10  # sicher für YouTube + Wikipedia
 
 # FINALER, SHORTS-SICHERER FILTER
