@@ -1,3 +1,42 @@
+"""
+resolve_channel_list_to_uploads_playlists.py — batch-convert a channel list into uploads playlist URLs.
+
+Description:
+    The production version of the single-channel resolvers in this folder. It
+    reads every channel URL from tunevote/data/unique_channels.txt, subtracts
+    the ones already recorded in tunevote/data/processed_channels.txt, and
+    resolves the remainder to uploads playlist URLs using a pool of ten threads.
+    Each successful result is appended to tunevote/data/unique_playlists.txt and
+    the source URL is appended to the processed file, so an interrupted run can
+    simply be restarted. Ctrl-C is caught and the results gathered so far are
+    still flushed to disk before the script exits.
+
+Requirements:
+    - Python 3.x
+    - Packages: yt-dlp
+    - External services: youtube.com (no API key)
+    - Environment variables / credentials needed: none
+
+Inputs:
+    tunevote/data/unique_channels.txt   — one channel URL per line
+    tunevote/data/processed_channels.txt — resume log, read if present
+
+Outputs:
+    tunevote/data/unique_playlists.txt   — appended, one playlist URL per line
+    tunevote/data/processed_channels.txt — appended, one channel URL per line
+    Progress lines on stdout.
+
+Usage:
+    # from the repository root, with the virtual environment activated
+    python tunevote/scrapers/resolve_channel_list_to_uploads_playlists.py
+
+Notes:
+    Both output files are opened in append mode, so re-running never truncates
+    earlier results. Ten concurrent workers is a deliberate compromise; raising
+    it increases the chance of YouTube throttling the requests. Channels that
+    fail are not written to the processed file and will be retried next run.
+"""
+
 from yt_dlp import YoutubeDL
 import re
 import os
@@ -72,7 +111,7 @@ def main():
     processed_to_append = []
     completed_count = 0
 
-    max_workers = 10  # experimentiere ggf. mit 10-20
+    max_workers = 10  # 10-20 is a reasonable range to experiment with
     futures = []
     try:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -93,7 +132,7 @@ def main():
     except KeyboardInterrupt:
         print("\n⏹ KeyboardInterrupt detected! Saving cached results...")
     finally:
-        # Immer sicherstellen, dass die gesammelten Ergebnisse gespeichert werden
+        # Always make sure the results gathered so far are written out
         append_lines(PLAYLISTS_FILE, playlists_to_append)
         append_lines(PROCESSED_FILE, processed_to_append)
         print(f"✅ Saved {len(processed_to_append)} processed channels. {total - completed_count} remaining.")

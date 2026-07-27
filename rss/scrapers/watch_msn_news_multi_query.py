@@ -1,3 +1,45 @@
+"""
+watch_msn_news_multi_query.py — watch several Bing News queries for MSN articles, matching headline and body.
+
+Description:
+    The most complete of the three MSN watchers and the one to prefer. It works
+    like watch_msn_news_with_keywords.py — fetching each unseen article and
+    matching a keyword list against the headline and the full body text — but
+    sweeps six different Bing News searches per cycle instead of one, which
+    widens coverage considerably since Bing surfaces different articles for
+    different query terms. A failure on one query is reported and skipped without
+    affecting the others. Matches are pushed to an ntfy topic, and seen headlines
+    are persisted as indented, non-escaped JSON so the file stays readable.
+
+Requirements:
+    - Python 3.x
+    - Packages: requests, beautifulsoup4
+    - External services: bing.com, msn.com and ntfy.sh
+    - Environment variables / credentials needed: none — the ntfy topic is
+      hardcoded and acts as a shared secret, see SECURITY_NOTES.md
+
+Inputs:
+    The SEARCH_URLS, KEYWORDS and CHECK_INTERVAL constants in this file.
+    rss/data/seen_articles.json — seen headlines, read if present
+
+Outputs:
+    rss/data/seen_articles.json — rewritten whenever a new match is found
+    Push notifications to the configured ntfy topic; hits printed on stdout.
+
+Usage:
+    # from the repository root, with the virtual environment activated
+    python rss/scrapers/watch_msn_news_multi_query.py
+
+Notes:
+    This script never terminates on its own — stop it with Ctrl-C. The file name
+    has nothing to do with the Go programming language; the original name was
+    golang.py and was simply misleading. Six queries multiply both the runtime
+    and the request volume per cycle. Only matching headlines are remembered, so
+    non-matching articles are re-downloaded every cycle. All three MSN watchers
+    share the same seen-articles file, so running more than one at a time will
+    have them overwrite each other's state.
+"""
+
 import requests
 from bs4 import BeautifulSoup
 import time
@@ -5,7 +47,7 @@ import json
 import os
 
 # =========================
-# KONFIGURATION
+# CONFIGURATION
 # =========================
 
 NTFY_URL = "https://ntfy.sh/derek-sparen-spalter-alert-xyz-gradunal-k3f9x2p7q-k3f9x2p7q"
@@ -18,9 +60,9 @@ SEARCH_URLS = [
     "https://www.bing.com/news/search?q=site:msn.com+stralium&FORM=HDRSC6"
 ]
 SEEN_FILE = "rss/data/seen_articles.json"
-CHECK_INTERVAL = 300  # Sekunden
+CHECK_INTERVAL = 300  # seconds
 
-# 🔎 Schlagwörter / Phrasen
+# 🔎 Keywords and phrases to match
 KEYWORDS = [
     "helvetus",
     "betrug",
@@ -29,7 +71,7 @@ KEYWORDS = [
 ]
 
 # =========================
-# HILFSFUNKTIONEN
+# HELPER FUNCTIONS
 # =========================
 
 def load_seen():
@@ -46,24 +88,24 @@ def send_ntfy(title, link):
     try:
         requests.post(
             NTFY_URL,
-            data=f"Neuer MSN-Artikel:\n\n{title}\n{link}".encode("utf-8"),
+            data=f"New MSN article:\n\n{title}\n{link}".encode("utf-8"),
             headers={
-                "Title": "MSN Artikel gefunden",
+                "Title": "MSN article found",
                 "Priority": "4",
                 "User-Agent": "msn-parser/1.0"
             },
             timeout=10
         )
     except requests.exceptions.RequestException as e:
-        print("⚠️ ntfy Fehler:", e)
+        print("⚠️ ntfy error:", e)
 
 def fetch_article_content(url):
-    """Lädt den Artikel und gibt den Text zurück."""
+    """Download the article and return its text."""
     try:
         r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
         r.raise_for_status()
     except requests.RequestException as e:
-        print("⚠️ Fehler beim Laden des Artikels:", e)
+        print("⚠️ Error loading the article:", e)
         return ""
 
     soup = BeautifulSoup(r.text, "html.parser")
@@ -72,7 +114,7 @@ def fetch_article_content(url):
     return content.lower()
 
 def matches_keywords(title, content):
-    """Prüft, ob eines der Keywords im Titel oder im Artikeltext vorkommt."""
+    """Check whether any keyword appears in the headline or the article body."""
     title_lower = title.lower()
     for kw in KEYWORDS:
         kw_lower = kw.lower()
@@ -81,7 +123,7 @@ def matches_keywords(title, content):
     return False
 
 # =========================
-# NEWS-CHECK
+# NEWS CHECK
 # =========================
 
 def check_news():
@@ -92,11 +134,11 @@ def check_news():
             r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
             r.raise_for_status()
         except requests.RequestException as e:
-            print(f"⚠️ Bing Fehler bei {url}: {e}")
+            print(f"⚠️ Bing error on {url}: {e}")
             continue
 
         soup = BeautifulSoup(r.text, "html.parser")
-        articles = soup.select("a.title")  # oder evtl. "a.news-card-title" je nach Bing-Layout
+        articles = soup.select("a.title")  # or possibly "a.news-card-title", depending on the Bing layout
 
         for a in articles:
             title = a.get_text(strip=True)
@@ -109,11 +151,11 @@ def check_news():
             if title_norm in seen_titles:
                 continue
 
-            # Artikelinhalt laden
+            # Load the article body
             content = fetch_article_content(link)
 
             if matches_keywords(title, content):
-                print(f"[TREFFER] → {title}")
+                print(f"[MATCH] → {title}")
                 seen_titles.add(title_norm)
                 save_seen(seen_titles)
                 send_ntfy(title, link)
@@ -123,7 +165,7 @@ def check_news():
 # =========================
 
 seen_titles = load_seen()
-print("📰 MSN Keyword Watcher gestartet...")
+print("📰 MSN keyword watcher started...")
 
 while True:
     check_news()

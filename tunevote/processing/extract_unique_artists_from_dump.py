@@ -1,10 +1,54 @@
+"""
+extract_unique_artists_from_dump.py — reduce a video dump to one representative row per artist.
+
+Description:
+    The size-reduction step that made the channel lookup tractable: rather than
+    resolving the channel of all 29 364 cached videos, it keeps a single video
+    per artist, cutting the workload to roughly nine thousand rows. The video
+    dump is embedded directly in the raw_input string below. Each line is matched
+    against a verbose regular expression that pulls out the seven columns without
+    using eval, then the artist is inferred from the common "Artist - Title"
+    naming pattern. Titles are Unicode-normalized first so that en dashes and em
+    dashes are treated the same as a plain hyphen. The first video seen for each
+    artist is kept and written out; if no name pattern matches, the title is
+    recorded with a __NO_PATTERN__ marker instead of being dropped.
+
+Requirements:
+    - Python 3.x
+    - Packages: none beyond the standard library
+    - External services: none
+    - Environment variables / credentials needed: none
+
+Inputs:
+    The raw_input string inside this file — a 5.7 MB INSERT dump of
+    youtube_video_cache, occupying the first ~29 000 lines of the file.
+
+Outputs:
+    tunevote/data/artists_output.txt — or artists_output(1).txt, (2), … if that
+    name is taken. One Python tuple per line. Consumed by
+    tunevote/scrapers/extract_channel_urls_from_video_ids.py.
+
+Usage:
+    # from the repository root, with the virtual environment activated
+    python tunevote/processing/extract_unique_artists_from_dump.py
+
+Notes:
+    The embedded dump is the reason this file is 5.7 MB; the actual program is
+    the last ninety lines. The same data also exists as
+    database/dumps/youtube_video_cache_insert.sql. Splitting on the first dash is
+    a heuristic — artists whose name contains a dash, or titles that do not use
+    the pattern at all, are misattributed or marked __NO_PATTERN__, so the output
+    is worth reviewing. Lines that do not match the row pattern, including the
+    INSERT INTO header, are collected in ignored_lines and silently discarded.
+"""
+
 import re
 import os
 import unicodedata
 from collections import OrderedDict
 
 # ---------------------------------------------------------
-# RAW INPUT – hier einfach SQL reinkopieren!
+# RAW INPUT - paste the SQL dump in here
 # ---------------------------------------------------------
 raw_input = """
 INSERT INTO `youtube_video_cache` (`id`, `youtube_id`, `title`, `title_norm`, `duration`, `thumbnail`, `cached_at`) VALUES
@@ -29374,7 +29418,7 @@ INSERT INTO `youtube_video_cache` (`id`, `youtube_id`, `title`, `title_norm`, `d
 """
 
 # ---------------------------------------------------------
-# TUPEL PARSEN OHNE eval()
+# PARSE THE TUPLES WITHOUT eval()
 # ---------------------------------------------------------
 
 tuple_re = re.compile(
@@ -29422,16 +29466,16 @@ for line in raw_input.splitlines():
         ignored_lines.append(stripped)
 
 # ---------------------------------------------------------
-# ARTIST-ERKENNUNG
+# ARTIST DETECTION
 # ---------------------------------------------------------
 
-# erkennt: -  –  —
+# matches the hyphen, en dash and em dash variants: -  –  —
 artist_re = re.compile(r"^(.+?)\s*[-–—]\s+")
 
 artists = OrderedDict()
 
 for entry in entries:
-    # WICHTIG! → Unicode normalisieren (wandelt „–“ in „-“ um)
+    # IMPORTANT: normalize Unicode so an en dash is treated like a plain hyphen
     title = unicodedata.normalize("NFKC", entry[2])
 
     match = artist_re.match(title)
@@ -29444,7 +29488,7 @@ for entry in entries:
         artists[artist] = entry
 
 # ---------------------------------------------------------
-# Datei-Name automatisch inkrementieren
+# Increment the file name automatically
 # ---------------------------------------------------------
 filename = "tunevote/data/artists_output.txt"
 i = 1
@@ -29453,10 +29497,10 @@ while os.path.exists(filename):
     i += 1
 
 # ---------------------------------------------------------
-# Ausgabe
+# Write the output
 # ---------------------------------------------------------
 with open(filename, "w", encoding="utf-8") as f:
     for item in artists.values():
         f.write(str(item) + "\n")
 
-print("Output gespeichert in:", filename)
+print("Output saved to:", filename)

@@ -1,3 +1,42 @@
+"""
+export_channel_list_videos_to_sql.py — export every video of every listed channel to one SQL file.
+
+Description:
+    The broadest scraper in the project. It reads the channel list, drops
+    near-duplicate URLs by comparing a stripped-down form of each, and converts
+    every channel to its uploads playlist. For each playlist it first collects
+    the video IDs in a fast flat pass, warns when yt-dlp returns fewer videos
+    than the playlist claims to hold, then fetches full metadata for each video
+    across ten threads. Shorts are excluded twice over: by a yt-dlp match filter
+    and by an explicit check of the is_short flag and the /shorts/ URL form.
+    Wikipedia artist images are cached per artist so each name is looked up once.
+    Finally everything is written to one transactional SQL file.
+
+Requirements:
+    - Python 3.x
+    - Packages: yt-dlp, requests, tqdm, unidecode
+    - External services: youtube.com, en.wikipedia.org (neither needs a key)
+    - Environment variables / credentials needed: none
+
+Inputs:
+    tunevote/data/unique_channels.txt — one channel or playlist URL per line
+
+Outputs:
+    database/dumps/tunevote_artists_and_videos_insert.sql — overwritten on every
+    run, wrapped in START TRANSACTION / COMMIT. Progress goes to stderr.
+
+Usage:
+    # from the repository root, with the virtual environment activated
+    python tunevote/scrapers/export_channel_list_videos_to_sql.py
+
+Notes:
+    The output file is opened with mode "w", so each run replaces the previous
+    export. Unlike the other scrapers this one sets ignoreerrors to False on the
+    detail pass so failures surface instead of being silently skipped. A full run
+    over several hundred channels takes hours and holds every result in memory
+    until the end, so expect significant memory use on large channel lists.
+"""
+
 import yt_dlp
 import requests
 import re
@@ -6,24 +45,24 @@ from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from unidecode import unidecode
 
-# --- KONFIGURATION ---
+# --- CONFIGURATION ---
 OUTPUT_SQL_FILE = "database/dumps/tunevote_artists_and_videos_insert.sql"
 CHANNELS_FILE = "tunevote/data/unique_channels.txt"
-MAX_THREADS = 10  # sicher für YouTube + Wikipedia
+MAX_THREADS = 10  # safe for YouTube and Wikipedia together
 
-# FINALER, SHORTS-SICHERER FILTER
+# FINAL, SHORTS-PROOF FILTER
 ydl_opts_details = {
     'quiet': True,
     'no_warnings': True,
     'skip_download': True,
-    'ignoreerrors': False,                      # WICHTIG: jetzt sichtbare Fehler!
+    'ignoreerrors': False,                      # IMPORTANT: surface errors instead of hiding them
     'match_filter': yt_dlp.match_filter_func(
-        '!is_premium & duration > 60 & !is_short'   # ← der entscheidende Zusatz
+        '!is_premium & duration > 60 & !is_short'   # the decisive addition
     ),
 }
 # ----------------------
 
-# --- HILFSFUNKTIONEN ---
+# --- HELPER FUNCTIONS ---
 class SilentLogger:
     def debug(self, msg): pass
     def warning(self, msg): pass
@@ -50,7 +89,7 @@ def convert_channel_to_uploads_playlist(url):
             if channel_id and channel_id.startswith("UC"):
                 return f"https://www.youtube.com/playlist?list=UU{channel_id[2:]}"
         except Exception as e:
-            print(f"Konvertierungsfehler {url}: {e}", file=sys.stderr)
+            print(f"Conversion error for {url}: {e}", file=sys.stderr)
     return url
 
 def normalize_name(name):
@@ -58,7 +97,7 @@ def normalize_name(name):
         return ""
     return re.sub(r'\s+', ' ', re.sub(r'[^a-z0-9\s]', '', unidecode(name).lower())).strip()
 
-# --- Wikipedia-Cache ---
+# --- Wikipedia cache ---
 artist_image_cache = {}
 
 def get_artist_image(artist_name):
@@ -87,11 +126,11 @@ def get_artist_image(artist_name):
         artist_image_cache[artist_name] = result
         return result
     except Exception as e:
-        print(f"Wiki-Fehler ({artist_name}): {e}", file=sys.stderr)
+        print(f"Wikipedia error ({artist_name}): {e}", file=sys.stderr)
         artist_image_cache[artist_name] = None
         return None
 
-# --- Channels laden ---
+# --- Load the channels ---
 with open(CHANNELS_FILE, "r", encoding="utf-8") as f:
     raw = [l.strip() for l in f if l.strip().startswith("https://www.youtube.com/")]
 
@@ -103,7 +142,7 @@ for url in raw:
         seen.add(norm)
         unique_channels.append(url)
 
-# --- Hauptloop ---
+# --- Main loop ---
 all_video_data = []
 total_processed = 0
 
@@ -114,7 +153,7 @@ for idx, orig_url in enumerate(pbar, 1):
     if playlist_url != orig_url:
         print(f"→ {playlist_url}", file=sys.stderr)
 
-    # PHASE 1: nur sammeln, KEIN Filter
+    # PHASE 1: collect only, NO filter
     tasks = []
     ydl_flat = yt_dlp.YoutubeDL({
         'quiet': True,
@@ -126,16 +165,16 @@ for idx, orig_url in enumerate(pbar, 1):
     try:
         info = ydl_flat.extract_info(playlist_url, download=False)
         if not info or not info.get("entries"):
-            print(f"Keine Videos bei {playlist_url}", file=sys.stderr)
+            print(f"No videos found at {playlist_url}", file=sys.stderr)
             continue
 
-        uploader_name = info.get("uploader") or info.get("channel") or "Unbekannt"
+        uploader_name = info.get("uploader") or info.get("channel") or "Unknown"
         channel_id = info.get("channel_id") or (info["entries"][0].get("channel_id") if info["entries"] else None)
 
         expected = info.get("playlist_count")
         actual = len(info["entries"])
         if expected and actual < expected:
-            print(f"WARNUNG: Unvollständig! {actual}/{expected} Videos ({uploader_name})", file=sys.stderr)
+            print(f"WARNING: incomplete! {actual}/{expected} videos ({uploader_name})", file=sys.stderr)
 
         for e in info["entries"]:
             if not e:
@@ -144,21 +183,21 @@ for idx, orig_url in enumerate(pbar, 1):
             if vid:
                 tasks.append({"id": vid, "channel_name": uploader_name, "channel_id": channel_id})
     except Exception as e:
-        print(f"Phase 1 Fehler {playlist_url}: {e}", file=sys.stderr)
+        print(f"Phase 1 error on {playlist_url}: {e}", file=sys.stderr)
         continue
 
     found = len(tasks)
     pbar.set_postfix({
-        "Künstler": uploader_name[:25],
-        "Gefunden": found,
-        "Verarbeitet": total_processed,
-        "Kanal": f"{idx}/{len(unique_channels)}"
+        "Artist": uploader_name[:25],
+        "Found": found,
+        "Processed": total_processed,
+        "Channel": f"{idx}/{len(unique_channels)}"
     })
 
     if not tasks:
         continue
 
-    # PHASE 2: mit echtem Filter + doppelter Shorts-Sicherung
+    # PHASE 2: real filter plus a second Shorts safeguard
     def process(task):
         vid = task["id"]
         url = f"https://www.youtube.com/watch?v={vid}"
@@ -169,11 +208,11 @@ for idx, orig_url in enumerate(pbar, 1):
                 if not info:
                     return None
 
-                # DOPPELTE SHORTS-SICHERUNG (falls is_short mal fehlt)
+                # SECOND SHORTS SAFEGUARD (in case is_short is missing)
                 if info.get("is_short") or "/shorts/" in (info.get("webpage_url") or ""):
                     return None
 
-                # Besserer Artist-Name (nicht nur vom Channel!)
+                # Better artist name: prefer the video's own uploader field
                 artist = info.get("uploader") or info.get("channel") or task["channel_name"]
 
                 return {
@@ -186,7 +225,7 @@ for idx, orig_url in enumerate(pbar, 1):
                     'channel_id': task["channel_id"]
                 }
         except Exception as e:
-            print(f"Video-Fehler {vid}: {e}", file=sys.stderr)
+            print(f"Video error {vid}: {e}", file=sys.stderr)
             return None
 
     results = []
@@ -202,9 +241,9 @@ for idx, orig_url in enumerate(pbar, 1):
     all_video_data.extend(results)
 
     if successful < found:
-        print(f"{successful}/{found} Videos erfolgreich ({uploader_name})", file=sys.stderr)
+        print(f"{successful}/{found} videos succeeded ({uploader_name})", file=sys.stderr)
 
-# --- SQL schreiben ---
+# --- Write the SQL ---
 artists = {}
 for v in all_video_data:
     norm = normalize_name(v['artist_name'])
@@ -215,7 +254,7 @@ for v in all_video_data:
             'channel_id': v['channel_id']
         }
 
-print(f"\nFertig: {total_processed} Videos → {OUTPUT_SQL_FILE}", file=sys.stderr)
+print(f"\nDone: {total_processed} videos → {OUTPUT_SQL_FILE}", file=sys.stderr)
 
 with open(OUTPUT_SQL_FILE, "w", encoding="utf-8") as f:
     f.write("START TRANSACTION;\n")
@@ -234,4 +273,4 @@ with open(OUTPUT_SQL_FILE, "w", encoding="utf-8") as f:
                 f"(SELECT id FROM artists WHERE name_norm = '{anorm}'), {dur}, {thumb});\n")
     f.write("COMMIT;\n")
 
-print("SQL-Datei erfolgreich erstellt.", file=sys.stderr)
+print("SQL file created successfully.", file=sys.stderr)

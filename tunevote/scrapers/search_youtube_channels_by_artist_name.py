@@ -1,8 +1,50 @@
+"""
+search_youtube_channels_by_artist_name.py — find YouTube channels for a list of artist names or URLs.
+
+Description:
+    Reads a mixed list of artist names and YouTube URLs from
+    tunevote/data/artists.txt and resolves each one to a canonical channel URL.
+    Entries that already look like URLs are handed to yt-dlp directly; plain
+    names are turned into a YouTube search for "<name> official artist channel"
+    and the first hit is taken. Six worker threads process the list in parallel.
+    Results are checked against the channels already in
+    tunevote/data/unique_channels.txt as well as against each other, and only
+    genuinely new channel URLs are appended to that file.
+
+Requirements:
+    - Python 3.x
+    - Packages: yt-dlp
+    - External services: youtube.com (no API key)
+    - Environment variables / credentials needed: none
+
+Inputs:
+    tunevote/data/artists.txt          — one artist name or YouTube URL per line
+    tunevote/data/unique_channels.txt  — existing channels, used for deduplication
+
+Outputs:
+    tunevote/data/unique_channels.txt  — appended with the newly found channels
+    Per-item status lines on stdout.
+
+Usage:
+    # from the repository root, with the virtual environment activated
+    python tunevote/scrapers/search_youtube_channels_by_artist_name.py
+
+Notes:
+    Taking the first search result is a heuristic: for artists with a common
+    name it can pick a fan channel or a topic channel rather than the official
+    one, so the output is worth spot-checking. The file opens with a string
+    literal holding a browser-console JavaScript snippet that scrapes a
+    "similar artists" list from a music site; it is inert here and is kept only
+    because it documents how the artist list was originally assembled.
+    tunevote/data/artists.txt is not present in the repository and must be
+    supplied before running.
+"""
+
 '''
 (() => {
     const similarSection = document.querySelector("ol.similar-artists");
     if (!similarSection) {
-        console.warn("Keine similar-artists Section gefunden");
+        console.warn("No similar-artists section found");
         return;
     }
 
@@ -14,7 +56,7 @@
         .map(a => a.textContent.trim())
         .join("\n");
 
-    // Fallback-Kopieren für DevTools
+    // Fallback clipboard copy for DevTools
     const textarea = document.createElement("textarea");
     textarea.value = output;
     textarea.style.position = "fixed";
@@ -28,10 +70,10 @@
 
     try {
         document.execCommand("copy");
-        console.log("✅ In Zwischenablage kopiert:");
+        console.log("✅ Copied to clipboard:");
         console.log(output);
     } catch (err) {
-        console.error("❌ Kopieren fehlgeschlagen", err);
+        console.error("❌ Copy failed", err);
     }
 
     document.body.removeChild(textarea);
@@ -44,7 +86,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 CHANNELS_FILE = "tunevote/data/unique_channels.txt"
 INPUT_FILE = "tunevote/data/artists.txt"
-MAX_WORKERS = 6  # parallel threads (5–8 ist optimal)
+MAX_WORKERS = 6  # parallel threads (5-8 works best)
 
 
 # ---------- yt-dlp Optionen ----------
@@ -60,35 +102,35 @@ YDL_OPTS = {
 }
 
 
-# ---------- Input laden ----------
+# ---------- Load the input ----------
 def load_inputs(path: str) -> list[str]:
     if not os.path.exists(path):
-        raise FileNotFoundError(f"{path} nicht gefunden")
+        raise FileNotFoundError(f"{path} not found")
 
     with open(path, "r", encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip()]
 
 
-# ---------- Name → Channel (verbessert) ----------
+# ---------- Name -> channel (improved) ----------
 def search_channel_by_name(name: str) -> str | None:
     try:
         with yt_dlp.YoutubeDL(YDL_OPTS) as ydl:
-            # Füge "official artist channel" hinzu, um die Suche zu verfeinern
+            # Append "official artist channel" to narrow the search
             query = f"ytsearch1:{name} official artist channel"
             info = ydl.extract_info(query, download=False)
 
             if not info or not info.get("entries"):
                 return None
 
-            # Wir nehmen den ersten Eintrag
+            # Take the first result
             entry = info["entries"][0]
             
-            # Priorisiere die uploader_url oder channel_url
+            # Prefer uploader_url or channel_url
             channel_url = entry.get("uploader_url") or entry.get("channel_url")
 
             if channel_url:
-                # Optional: Extrahiere die Channel-ID aus der URL für einheitliche Links
-                # (yt-dlp extrahiert die ID oft automatisch in der info-Dict)
+                # Optional: use the channel ID so every link has the same form
+                # (yt-dlp usually provides the ID in the info dict already)
                 channel_id = entry.get("channel_id")
                 if channel_id:
                     return f"https://www.youtube.com/channel/{channel_id}"
@@ -98,7 +140,7 @@ def search_channel_by_name(name: str) -> str | None:
             return None
 
     except Exception as e:
-        # Fehlerbehandlung wurde beibehalten
+        # Error handling kept as-is
         print(f"[NAME ERROR] {name}: {e}")
         return None
 
@@ -128,7 +170,7 @@ def process_item(item: str) -> tuple[str, str | None]:
         return item, search_channel_by_name(item)
 
 
-# ---------- Bestehende Channels laden ----------
+# ---------- Load the channels already known ----------
 def load_existing_channels(path: str) -> set[str]:
     if not os.path.exists(path):
         return set()
@@ -151,22 +193,22 @@ def main():
             item, channel_url = future.result()
 
             if not channel_url:
-                print(f"❌ Kein Channel gefunden für: {item}")
+                print(f"❌ No channel found for: {item}")
                 continue
 
             if channel_url in existing_channels or channel_url in new_channels:
-                print(f"⚠️ Bereits vorhanden: {channel_url}")
+                print(f"⚠️ Already known: {channel_url}")
                 continue
 
             new_channels.add(channel_url)
-            print(f"✅ Gefunden: {channel_url}")
+            print(f"✅ Found: {channel_url}")
 
     if new_channels:
         with open(CHANNELS_FILE, "a", encoding="utf-8") as f:
             for url in sorted(new_channels):
                 f.write(url + "\n")
 
-    print(f"\n🎉 Fertig! {len(new_channels)} neue Channels hinzugefügt.")
+    print(f"\n🎉 Done! {len(new_channels)} new channels added.")
 
 
 if __name__ == "__main__":

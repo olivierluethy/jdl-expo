@@ -1,3 +1,43 @@
+/*
+session_page.jsx — React page component for a live TuneVote listening session.
+
+Description:
+    Renders the session screen of the TuneVote web app. It reads the session ID
+    from the route, loads the session over the REST API and opens a socket.io
+    connection so the queue, the current song and the playback position stay in
+    sync across every participant. Guests join by scanning a rendered QR code.
+    The component embeds a YouTube player and exposes play, pause, mute and skip
+    controls to the host only, searches the cached video catalogue as the user
+    types, offers AI-generated song suggestions, and supports timed pauses with a
+    countdown shown to everyone in the session.
+
+Requirements:
+    - Node.js with a bundler that handles JSX (none is configured in this repo)
+    - Packages: react, react-router-dom, axios, qrcode.react, socket.io-client,
+      react-icons
+    - External services: the TuneVote API and socket server at api.tunevote.com
+    - Environment variables / credentials needed: none in this file; the API host
+      is hardcoded in the SOCKET_SERVER constant
+
+Inputs:
+    The sessionId route parameter, plus live data from the REST and socket APIs.
+
+Outputs:
+    Rendered UI. It writes no files; all state changes go to the backend.
+
+Usage:
+    // This file is application source, not a runnable script. It belongs to the
+    // TuneVote frontend and has to be imported by that app's router:
+    //     import SessionPage from "./session_page.jsx";
+
+Notes:
+    This is the only frontend file in the repository — there is no package.json,
+    bundler config or build setup here, so it cannot be run from this repo as it
+    stands. It is kept under tunevote/ because it is TuneVote code and drives
+    YouTube playback. The backend host is hardcoded rather than configured, so
+    pointing it at a different environment means editing the source.
+*/
+
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -23,14 +63,14 @@ const SessionPage = () => {
 
   const [searchResults, setSearchResults] = useState([]);
 
-  const [videoCache, setVideoCache] = useState([]); // <-- NEU
+  const [videoCache, setVideoCache] = useState([]); // <-- added later
 
-  // 🔽 NEU
+  // 🔽 added later
   const [aiSuggestions, setAiSuggestions] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
 
-  const [pauseDuration, setPauseDuration] = useState(30); // default 30 Sekunden
-  const [pauseDescription, setPauseDescription] = useState("Kurze Pause");
+  const [pauseDuration, setPauseDuration] = useState(30); // default 30 seconds
+  const [pauseDescription, setPauseDescription] = useState("Short break");
 
   const [isPaused, setIsPaused] = useState(false);
   const [pauseRemaining, setPauseRemaining] = useState(0);
@@ -52,7 +92,7 @@ const SessionPage = () => {
   // === AI RECOMMENDATIONS ===
   const [recommendations, setRecommendations] = useState([]);
   const [recLoading, setRecLoading] = useState(false);
-  const [addingId, setAddingId] = useState(null); // <-- NEU: für Button-Feedback
+  const [addingId, setAddingId] = useState(null); // <-- added later: for button feedback
 
   const token = localStorage.getItem("token");
   const guestToken = localStorage.getItem("guestToken");
@@ -72,7 +112,7 @@ const SessionPage = () => {
     };
   };
 
-  // Hilfsfunktion: fügt Titel + Thumbnail anhand videoCache hinzu
+  // Helper: enriches queue entries with title and thumbnail from videoCache
   const enrichQueueItem = (item) => {
     if (item.item_type === "pause") {
       return {
@@ -108,7 +148,7 @@ const SessionPage = () => {
       const sessionData = sessRes.data;
       const queueData = queueRes.data || [];
 
-      // === WICHTIG: Queue mit Cache verknüpfen ===
+      // === IMPORTANT: join the queue with the cache ===
       const enrichedQueue = queueData.map((item) => {
         if (item.item_type === "pause") {
           return {
@@ -145,7 +185,7 @@ const SessionPage = () => {
         setShowGuestModal(true);
       }
     }
-  }, [sessionId, userId, videoCache]); // videoCache als Abhängigkeit!
+  }, [sessionId, userId, videoCache]); // videoCache is a dependency here
 
   useEffect(() => {
     let isMounted = true;
@@ -246,7 +286,7 @@ const SessionPage = () => {
       setSessionLive(true);
       loadSessionData();
 
-      // WICHTIG: Auch für Gäste syncen!
+      // IMPORTANT: sync for guests as well
       if (isLiveJoined && data.firstVideoId) {
         syncPlayback({
           current_video_id: data.firstVideoId,
@@ -317,18 +357,18 @@ const SessionPage = () => {
   }, [sessionId, token, guestToken, loadSessionData, isLiveJoined, isHost]);
 
   // === CACHE LADEN ===
-  // === CACHE LADEN (außerhalb von useEffect!) ===
+  // === LOAD THE CACHE (outside useEffect) ===
   const loadCache = useCallback(async () => {
     try {
       const res = await axios.get("https://api.tunevote.com/youtube-cache");
       // NORMALISIERE: youtube_id → youtubeId
       const normalized = res.data.map((item) => ({
         ...item,
-        youtubeId: item.youtube_id || item.youtubeId, // fallback für alte Daten
+        youtubeId: item.youtube_id || item.youtubeId, // fallback for older records
         youtube_id: undefined, // optional: altes Feld entfernen
       }));
       setVideoCache(normalized);
-      console.log(`[Cache] ${normalized.length} Einträge geladen`);
+      console.log(`[Cache] ${normalized.length} entries loaded`);
     } catch (err) {
       console.warn("[Cache] Laden fehlgeschlagen", err);
     }
@@ -340,7 +380,7 @@ const SessionPage = () => {
 
     const interval = setInterval(loadCache, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [loadCache]); // loadCache als Abhängigkeit
+  }, [loadCache]); // loadCache is a dependency
 
   // === LIVE-SUCHE: Sofort beim Tippen ===
   useEffect(() => {
@@ -373,7 +413,7 @@ const SessionPage = () => {
 
         if (matches.length > 0) {
           results = matches.map((m) => ({
-            id: { videoId: m.youtubeId }, // ← ÄNDERN!
+            id: { videoId: m.youtubeId }, // <- CHANGE THIS
             snippet: {
               title: m.title,
               thumbnails: { default: { url: m.thumbnail } },
@@ -415,7 +455,7 @@ const SessionPage = () => {
 
         setSearchResults(results);
 
-        // KI-Vorschläge
+        // AI suggestions
         if (sessionLive && isLiveJoined) {
           setAiLoading(true);
           try {
@@ -459,7 +499,7 @@ const SessionPage = () => {
     };
   }, []);
 
-  // === Player erstellen (für alle Clients) ===
+  // === Create the player (for all clients) ===
   const createPlayer = (youtubeId, startSeconds = 0, shouldPlay = false) => {
     if (!youtubeId) return;
 
@@ -540,7 +580,7 @@ const SessionPage = () => {
       alert("Fehler beim Beitreten zur Live-Session");
     }
 
-    // Regelmäßiger Sync
+    // Periodic sync
     syncIntervalRef.current = setInterval(async () => {
       if (!isLiveJoined) return;
       try {
@@ -670,7 +710,7 @@ const SessionPage = () => {
     const normQuery = normalize(query);
 
     try {
-      // ---- 1. Lokaler Cache: Ähnliche Titel suchen (JS Levenshtein) ----
+      // ---- 1. Local cache: look for similar titles (Levenshtein in JS) ----
       const matches = videoCache
         .map((item) => {
           const normTitle = item.title_norm;
@@ -726,7 +766,7 @@ const SessionPage = () => {
             {
               title_norm: norm,
               title,
-              youtubeId: youtubeId, // ← ÄNDERN!
+              youtubeId: youtubeId, // <- CHANGE THIS
               thumbnail,
             },
             { headers: getAuthHeaders() },
@@ -748,7 +788,7 @@ const SessionPage = () => {
     }
   };
 
-  // 🔽 NEU: KI-Songvorschläge abrufen
+  // 🔽 added later: fetch AI song suggestions
   const fetchAiSuggestions = async (query) => {
     setAiLoading(true);
     try {
@@ -793,11 +833,11 @@ const SessionPage = () => {
         nickname,
       });
 
-      // WICHTIG: Erst speichern, DANN Modal schließen!
+      // IMPORTANT: save first, THEN close the modal
       localStorage.setItem("guestToken", res.data.guestToken);
       localStorage.setItem("guestName", nickname);
 
-      setShowGuestModal(false); // Jetzt schließen
+      setShowGuestModal(false); // close it now
       await loadSessionData(); // Jetzt mit Token laden
     } catch (err) {
       console.error(err);
@@ -806,7 +846,7 @@ const SessionPage = () => {
   };
 
   // === ADD RECOMMENDED SONG ===
-  // === ADD RECOMMENDED SONG (mit Feedback + Stabilität) ===
+  // === ADD RECOMMENDED SONG (with feedback and stability) ===
   const addRecommendation = async (rec) => {
     if (addingId === rec.youtubeId) return;
     setAddingId(rec.youtubeId);
@@ -1039,7 +1079,7 @@ const SessionPage = () => {
           </div>
         )}
 
-        {/* YouTube Suche + KI-Vorschläge */}
+        {/* YouTube search and AI suggestions */}
         <div className="bg-white p-4 rounded-lg shadow mb-6">
           <h2 className="text-xl font-semibold mb-3">YouTube Suche</h2>
           <input
@@ -1077,7 +1117,7 @@ const SessionPage = () => {
             </div>
           )}
 
-          {/* KI-Vorschläge direkt darunter */}
+          {/* AI suggestions directly below */}
           {aiLoading && (
             <p className="text-sm text-gray-500">
               KI-Vorschläge werden geladen…
@@ -1185,7 +1225,7 @@ const SessionPage = () => {
           </div>
         )}
 
-        {/* === NEU: KI-Vorschläge unter der Suche === */}
+        {/* === added later: AI suggestions below the search === */}
         {aiLoading && (
           <p className="text-sm text-gray-500 mt-2">
             KI-Vorschläge werden geladen…

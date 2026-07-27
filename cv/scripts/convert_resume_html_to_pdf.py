@@ -1,24 +1,62 @@
 #!/usr/bin/env python3
 """
-html_to_pdf.py — Pixel-perfect HTML → PDF converter using Playwright + Chromium.
+convert_resume_html_to_pdf.py — render an HTML resume to a pixel-perfect PDF with Playwright and Chromium.
 
-Why Playwright/Chromium?
-  • Uses the same rendering engine as Google Chrome — the gold standard for HTML/CSS fidelity.
-  • Loads local fonts, CSS, images, and SVGs from disk without sandboxing issues.
-  • Supports the CSS @page rule, so your HTML margin/page-size declarations are honoured.
-  • Waits for full network idle + layout-complete before printing, eliminating flash-of-unstyled-content artefacts.
-  • Chromium's PDF print path is the same code path used by "Print to PDF" in Chrome — the closest to
-    a human opening your CV in Chrome and pressing Ctrl+P.
+Description:
+    Converts an HTML CV to PDF through headless Chromium, which is the closest
+    automated equivalent to opening the file in Chrome and printing it. The page
+    is loaded from disk as a file:// URL so local fonts, stylesheets, images and
+    SVGs resolve normally. The script waits for the network to go idle and for
+    document.fonts to report ready, then injects a small stylesheet that forces
+    background colours to be printed, freezes animations and transitions so
+    nothing is captured mid-frame, and neutralizes collapsing margins at the page
+    edges. It reads the @page margins out of the document's own stylesheets and
+    honours them instead of imposing its own, then prints A4 at a 2x device scale
+    for sharp text. GPU compositing is disabled so the output is identical on
+    Windows, macOS and Linux.
+
+Requirements:
+    - Python 3.x
+    - Packages: playwright — after installing it, run: playwright install chromium
+    - External services: none; everything is rendered locally
+    - Environment variables / credentials needed: none
+
+Inputs:
+    The path to an .html or .htm file, given as the first argument.
+    Options: --output/-o, --scale, --no-background, --timeout.
+
+Outputs:
+    A PDF file. By default it is written next to the input with the same stem and
+    a .pdf extension; --output overrides that. Missing parent directories are
+    created. Progress and the final file size are printed to stdout.
 
 Usage:
-    python html_to_pdf.py cv.html                         # outputs cv.pdf
-    python html_to_pdf.py cv.html --output my_cv.pdf      # custom output path
-    python html_to_pdf.py cv.html --scale 1.0             # override scale (default: 1.0)
-    python html_to_pdf.py cv.html --no-background         # omit background graphics
+    # from the repository root, with the virtual environment activated
+    python cv/scripts/convert_resume_html_to_pdf.py cv/templates/olivier_luethy_cv_en.html \
+        --output cv/output/olivier_luethy_cv_en.pdf
 
-Installation:
-    pip install playwright
-    playwright install chromium
+Notes:
+    The rendered PDFs already in cv/output were produced this way. Use --scale
+    below 1.0 only if the content overflows the page width; the default of 1.0
+    preserves the design exactly. --no-background omits background colours and
+    images, which is useful for a print-friendly version. The default page-load
+    timeout is 30 seconds. If Playwright is missing the script exits with an
+    explanatory message rather than a traceback, but the separate
+    "playwright install chromium" step is easy to forget and produces an error
+    only when the browser is first launched.
+
+    Why Playwright and Chromium, from the original author's notes:
+      - Uses the same rendering engine as Google Chrome, the gold standard for
+        HTML/CSS fidelity.
+      - Loads local fonts, CSS, images and SVGs from disk without sandboxing
+        issues.
+      - Supports the CSS @page rule, so the HTML's own margin and page-size
+        declarations are honoured.
+      - Waits for full network idle and layout completion before printing, which
+        eliminates flash-of-unstyled-content artefacts.
+      - Chromium's PDF print path is the same code used by "Print to PDF" in
+        Chrome, so the result matches opening the CV in Chrome and pressing
+        Ctrl+P.
 """
 
 import argparse
