@@ -308,11 +308,23 @@ and finished document renders — several of them cannot be regenerated.
 | `database/dumps/` | Four `.sql` exports, ~48 MB total | Real exported data, including a dump with a `users` table. |
 | `cv/output/` | Four rendered PDFs | Finished documents; regenerating an old one needs the exact source it was built from, which is not always recoverable. |
 
-Some scripts also write files into `tunevote/data/` that are not committed:
-`unique_playlists.txt`, `available_channels.txt`, `dead_channels.txt`,
-`artists_output.txt` and `update_durations.txt`. Two scripts expect inputs that
-are **not** in the repository and must be supplied first: `artists.txt` and
-`artists_output(1).txt`.
+Some scripts also produce files that are **not** committed and that land in the
+**current working directory** — the repository root, if you follow the
+run-from-root convention: `unique_playlists.txt`, `available_channels.txt`,
+`dead_channels.txt` and `artists_output.txt`. These paths were left as the
+original author wrote them rather than redirected into `tunevote/data/`, so the
+scripts behave exactly as before. Move the results yourself if you want them
+filed under a domain folder.
+
+`update_durations.txt` is the exception: that one script resolves its output
+relative to its own location, so the file appears in `tunevote/processing/`
+regardless of where you start it.
+
+Two scripts expect inputs that are not in the repository and must be supplied
+first, also in the working directory: `artists.txt` (for
+`search_youtube_channels_by_artist_name.py`) and `artists_output(1).txt` (for
+`extract_channel_urls_from_video_ids.py`, produced by
+`extract_unique_artists_from_dump.py`).
 
 Note that several scripts open their output with mode `w` and overwrite the
 previous result without asking — the two SQL exporters and the schema dumper in

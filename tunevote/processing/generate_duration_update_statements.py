@@ -22,18 +22,21 @@ Inputs:
     The raw_input string inside this file, holding rows of the form ('videoId'),
 
 Outputs:
-    tunevote/data/update_durations.txt — or update_durations1.txt, 2, … if that
-    name is taken. One UPDATE statement per video; failures are written as SQL
-    comments so the file stays valid. Progress goes to stdout.
+    tunevote/processing/update_durations.txt — or update_durations1.txt, 2, …
+    if that name is taken. The path is resolved relative to this file, so the
+    output always lands next to the script regardless of the working directory.
+    One UPDATE statement per video; failures are written as SQL comments so the
+    file stays valid. Progress goes to stdout.
 
 Usage:
     # from the repository root, with the virtual environment activated
     python tunevote/processing/generate_duration_update_statements.py
 
 Notes:
-    The output path is resolved relative to this file, not to the working
-    directory, so the file always lands in tunevote/data regardless of where the
-    script is started. Videos that have since been deleted or made private
+    Unlike the other scripts here, the output path is resolved relative to this
+    file rather than to the working directory, so the file lands beside the
+    script no matter where it is started from. Videos that have since been
+    deleted or made private
     cannot be repaired and are recorded as commented-out errors. Review the
     generated statements before applying them to a live database.
 """
@@ -69,7 +72,7 @@ raw_input = """
 video_ids = re.findall(r"\('([^']+)'\)", raw_input)
 
 # --- Output file for the SQL statements ---
-base_filename = '../data/update_durations.txt'
+base_filename = 'update_durations.txt'
 output_file = os.path.join(os.path.dirname(__file__), base_filename)
 
 # If the file already exists, add an incrementing counter to the name

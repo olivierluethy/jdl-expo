@@ -212,18 +212,26 @@ Two categories were repointed:
 | `insert.sql` | `database/dumps/tunevote_artists_and_videos_insert.sql` |
 | `struktur.sql` | `database/dumps/tunevote_schema_structure.sql` |
 
-**Sibling files that were never in the repository** but are read or written
-alongside the ones above. These were repointed to the matching `data/` folder so
-outputs land with their inputs instead of scattering into the repository root:
-`unique_playlists.txt`, `available_channels.txt`, `dead_channels.txt`,
-`artists.txt`, `artists_output.txt`, `artists_output(1).txt`,
-`update_durations.txt`. This is a judgment call and is flagged here explicitly —
-it changes where those files appear, though not what any script does.
+**Sibling files that were never in the repository** — `unique_playlists.txt`,
+`available_channels.txt`, `dead_channels.txt`, `artists.txt`,
+`artists_output.txt`, `artists_output(1).txt` and `update_durations.txt` — were
+**left exactly as the original author wrote them**. These seven were briefly
+repointed into the matching `data/` folder, then reverted at the repository
+owner's request, because no rename had occurred and redirecting them would have
+changed where a script's output appears without any migration requiring it.
 
-One path is resolved script-relative rather than against the working directory:
+The scope rule that resulted: a path literal was only rewritten when the file it
+names actually moved. Everything else was left alone.
+
+The practical consequence is that these files land in the **current working
+directory** — the repository root, under the run-from-root convention — rather
+than in a domain `data/` folder. This is documented in `README.md` and
+`tunevote/README.md` so it is not a surprise.
+
+`update_durations.txt` is the one exception, and it needed no change either way:
 `generate_duration_update_statements.py` builds its output path from
-`os.path.dirname(__file__)`, so its literal became `../data/update_durations.txt`
-to keep that mechanism intact.
+`os.path.dirname(__file__)`, so the file lands beside the script in
+`tunevote/processing/` regardless of the working directory.
 
 ### 6.2 Documentation (commit `a99a990`)
 

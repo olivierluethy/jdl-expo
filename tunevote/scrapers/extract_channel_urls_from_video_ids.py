@@ -19,14 +19,14 @@ Requirements:
     - Environment variables / credentials needed: none
 
 Inputs:
-    tunevote/data/artists_output(1).txt — SQL-tuple rows, produced by
+    artists_output(1).txt — SQL-tuple rows, produced by
                                           tunevote/processing/extract_unique_artists_from_dump.py
     tunevote/data/processed_videos.txt  — resume log, read if present
 
 Outputs:
     tunevote/data/unique_channels.txt  — appended with newly discovered channels
     tunevote/data/processed_videos.txt — appended with every ID attempted
-    tunevote/data/artists_output(1).txt — rewritten without processed rows
+    artists_output(1).txt — rewritten without processed rows
     A progress bar and per-video status lines on stdout.
 
 Notes:
@@ -51,7 +51,7 @@ import sys
 import os
 
 # === Files ===
-raw_file = "tunevote/data/artists_output(1).txt"          # The large SQL-shaped input goes here
+raw_file = "artists_output(1).txt"          # The large SQL-shaped input goes here
 processed_file = "tunevote/data/processed_videos.txt"   # Created automatically and appended to
 output_file = "tunevote/data/unique_channels.txt"
 

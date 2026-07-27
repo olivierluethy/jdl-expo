@@ -25,7 +25,7 @@ data/unique_channels.txt
         ├─▶ scrapers/check_channel_availability.py      (drop dead channels)
         │
         ▼  scrapers/resolve_channel_list_to_uploads_playlists.py
-data/unique_playlists.txt
+unique_playlists.txt          (written to the working directory)
         │
         ▼  scrapers/export_channel_list_videos_to_sql.py
 ../database/dumps/tunevote_artists_and_videos_insert.sql
@@ -71,14 +71,25 @@ data/unique_playlists.txt
 
 These are **results of long scraping runs**, not scratch files. The two resume
 logs are what let an interrupted run continue instead of starting over; deleting
-them means re-doing hours of work. Several scripts also write files into this
-folder that are not committed: `unique_playlists.txt`, `available_channels.txt`,
-`dead_channels.txt`, `artists_output.txt` and `update_durations.txt`.
+them means re-doing hours of work.
+
+Only the three committed files above live in this folder. Several scripts also
+produce uncommitted files, and those land in the **current working directory**
+rather than here — the repository root, if you follow the run-from-root
+convention: `unique_playlists.txt`, `available_channels.txt`,
+`dead_channels.txt` and `artists_output.txt`. Those paths were deliberately left
+as the original author wrote them, so the scripts behave exactly as they always
+did; move the results into this folder yourself if you want them filed here.
+
+`update_durations.txt` is the one exception: `generate_duration_update_statements.py`
+resolves its output relative to its own file, so it appears in
+`tunevote/processing/` no matter where you start it.
 
 Two scripts expect an input that is **not** in the repository and must be
-supplied first: `artists.txt` (for `search_youtube_channels_by_artist_name.py`)
-and `artists_output(1).txt` (for `extract_channel_urls_from_video_ids.py`, which
-is produced by `extract_unique_artists_from_dump.py`).
+supplied first, also in the working directory: `artists.txt` (for
+`search_youtube_channels_by_artist_name.py`) and `artists_output(1).txt` (for
+`extract_channel_urls_from_video_ids.py`, which is produced by
+`extract_unique_artists_from_dump.py`).
 
 ## frontend/
 

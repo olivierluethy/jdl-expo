@@ -24,7 +24,7 @@ Inputs:
     youtube_video_cache, occupying the first ~29 000 lines of the file.
 
 Outputs:
-    tunevote/data/artists_output.txt — or artists_output(1).txt, (2), … if that
+    artists_output.txt — or artists_output(1).txt, (2), … if that
     name is taken. One Python tuple per line. Consumed by
     tunevote/scrapers/extract_channel_urls_from_video_ids.py.
 
@@ -29490,10 +29490,10 @@ for entry in entries:
 # ---------------------------------------------------------
 # Increment the file name automatically
 # ---------------------------------------------------------
-filename = "tunevote/data/artists_output.txt"
+filename = "artists_output.txt"
 i = 1
 while os.path.exists(filename):
-    filename = f"tunevote/data/artists_output({i}).txt"
+    filename = f"artists_output({i}).txt"
     i += 1
 
 # ---------------------------------------------------------

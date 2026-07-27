@@ -20,7 +20,7 @@ Inputs:
     tunevote/data/unique_channels.txt — one channel URL per line
 
 Outputs:
-    tunevote/data/unique_playlists.txt — appended, one playlist URL per line
+    unique_playlists.txt — appended, one playlist URL per line
 
 Usage:
     # from the repository root, with the virtual environment activated
@@ -36,7 +36,7 @@ Notes:
 """
 
 INPUT_FILE = "tunevote/data/unique_channels.txt"
-OUTPUT_FILE = "tunevote/data/unique_playlists.txt"
+OUTPUT_FILE = "unique_playlists.txt"
 
 with open(INPUT_FILE, "r", encoding="utf-8") as infile, \
      open(OUTPUT_FILE, "a", encoding="utf-8") as outfile:

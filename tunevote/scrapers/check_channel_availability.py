@@ -20,8 +20,8 @@ Inputs:
     tunevote/data/unique_channels.txt — one channel URL per line
 
 Outputs:
-    tunevote/data/available_channels.txt — overwritten, reachable channels
-    tunevote/data/dead_channels.txt      — overwritten, unreachable channels
+    available_channels.txt — overwritten, reachable channels
+    dead_channels.txt      — overwritten, unreachable channels
     Per-channel status and a summary on stdout.
 
 Usage:
@@ -47,8 +47,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # File names
 # =============================
 input_file = 'tunevote/data/unique_channels.txt'
-available_file = 'tunevote/data/available_channels.txt'
-dead_file = 'tunevote/data/dead_channels.txt'
+available_file = 'available_channels.txt'
+dead_file = 'dead_channels.txt'
 
 # =============================
 # Function that probes a single channel

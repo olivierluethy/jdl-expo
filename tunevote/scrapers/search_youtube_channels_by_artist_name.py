@@ -3,7 +3,7 @@ search_youtube_channels_by_artist_name.py — find YouTube channels for a list o
 
 Description:
     Reads a mixed list of artist names and YouTube URLs from
-    tunevote/data/artists.txt and resolves each one to a canonical channel URL.
+    artists.txt and resolves each one to a canonical channel URL.
     Entries that already look like URLs are handed to yt-dlp directly; plain
     names are turned into a YouTube search for "<name> official artist channel"
     and the first hit is taken. Six worker threads process the list in parallel.
@@ -18,7 +18,7 @@ Requirements:
     - Environment variables / credentials needed: none
 
 Inputs:
-    tunevote/data/artists.txt          — one artist name or YouTube URL per line
+    artists.txt          — one artist name or YouTube URL per line
     tunevote/data/unique_channels.txt  — existing channels, used for deduplication
 
 Outputs:
@@ -36,7 +36,7 @@ Notes:
     literal holding a browser-console JavaScript snippet that scrapes a
     "similar artists" list from a music site; it is inert here and is kept only
     because it documents how the artist list was originally assembled.
-    tunevote/data/artists.txt is not present in the repository and must be
+    artists.txt is not present in the repository and must be
     supplied before running.
 """
 
@@ -85,7 +85,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 CHANNELS_FILE = "tunevote/data/unique_channels.txt"
-INPUT_FILE = "tunevote/data/artists.txt"
+INPUT_FILE = "artists.txt"
 MAX_WORKERS = 6  # parallel threads (5-8 works best)
 
 

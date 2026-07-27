@@ -6,7 +6,7 @@ Description:
     reads every channel URL from tunevote/data/unique_channels.txt, subtracts
     the ones already recorded in tunevote/data/processed_channels.txt, and
     resolves the remainder to uploads playlist URLs using a pool of ten threads.
-    Each successful result is appended to tunevote/data/unique_playlists.txt and
+    Each successful result is appended to unique_playlists.txt and
     the source URL is appended to the processed file, so an interrupted run can
     simply be restarted. Ctrl-C is caught and the results gathered so far are
     still flushed to disk before the script exits.
@@ -22,7 +22,7 @@ Inputs:
     tunevote/data/processed_channels.txt — resume log, read if present
 
 Outputs:
-    tunevote/data/unique_playlists.txt   — appended, one playlist URL per line
+    unique_playlists.txt   — appended, one playlist URL per line
     tunevote/data/processed_channels.txt — appended, one channel URL per line
     Progress lines on stdout.
 
@@ -43,7 +43,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 CHANNELS_FILE = "tunevote/data/unique_channels.txt"
-PLAYLISTS_FILE = "tunevote/data/unique_playlists.txt"
+PLAYLISTS_FILE = "unique_playlists.txt"
 PROCESSED_FILE = "tunevote/data/processed_channels.txt"
 
 class SilentLogger:
