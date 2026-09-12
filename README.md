@@ -1,5 +1,7 @@
 # JDL Expo
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A collection of Python tooling that grew around three unrelated jobs. The bulk
 of it is the **TuneVote** data pipeline: scripts that scrape YouTube channel and
 video metadata with `yt-dlp`, enrich it with artist images from Wikipedia, and
@@ -366,3 +368,12 @@ meaningless names (`gangster.py`, `golang.py`, `kuh.sql`, `mika.py`,
 - [`docs/project_history_de.md`](docs/project_history_de.md) — the original
   German engineering journal, kept verbatim, with an English translation in
   [`docs/project_history_en.md`](docs/project_history_en.md)
+
+## License
+
+Released under the [MIT License](LICENSE) © 2026 Olivier Lüthy. You're free to use, modify and distribute this
+software, including commercially, as long as the copyright notice and license are included.
+
+## Author
+
+Built by **Olivier Lüthy** — [GitHub](https://github.com/olivierluethy).
